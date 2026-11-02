@@ -404,6 +404,9 @@ def import_check(cv):
         if m: used_by[m.group(1)].append(x)
     for ct in cv.get('customTemplate', []) or []:
         td = ct.get('templateData', '') or ''
+        if '___INFO___' not in td:
+            out.append(('Check', 'Template', ct.get('name', ''), 'Template has no code (template_data missing ___INFO___) – GTM refuses the whole file: "Missing section ___INFO___"',
+                        'Export the container again from GTM (Admin → Export Container) so the template code is included, then re-run')); continue
         m = TD_SECTION.search(td)
         if not m: continue
         try:

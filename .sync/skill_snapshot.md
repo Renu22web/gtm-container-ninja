@@ -1,6 +1,6 @@
 ---
-name: "gtm-container-ninja"
-description: "GTM Container Ninja - rename every tag, trigger and variable in a GTM container export to the PLC naming convention, give the same set-up the same name across all brands (brand library), optionally clean up unused items, and return an Excel summary, rename map and import-ready JSON."
+name: gtm-container-ninja
+description: GTM Container Ninja - rename every tag, trigger and variable in a GTM container export to the PLC naming convention, give the same set-up the same name across all brands (brand library), optionally clean up unused items, and return an Excel summary, rename map and import-ready JSON.
 ---
 
 # GTM Container Ninja
@@ -38,8 +38,8 @@ The page exports the same files (Brand library, My vendors, Team rules, Fix list
    - **Select & export** – tick items (or "select all shown") and export only those, with the triggers, variables and templates they need. A partial file is imported with **Merge → Overwrite conflicting tags, triggers and variables**, never with Overwrite (that would delete everything not in the file).
    - **Find & replace**, **History** (undo/redo of every name change), **Name score** (share of names in the format, before/after, minus duplicates and missing consent), **Compare brands** (load other exports: vendors and tag actions per brand, what differs, CSV) and **Test after import** (journey test plan per step – home, category, product, add to cart, basket, checkout, purchase – as JSON/CSV for the GTM journey-tester skill).
 5. **Review before handing over.** Open `<name>_summary.xlsx` (sheets: Summary, Rename Map, Duplicates – delete, No consent condition, Deleted – not used (with `--cleanup`), Import check) and check:
-   - **Import check sheet:** every run also makes the file safe to import. *Fixed* rows are problems GTM would refuse that the script repaired (today: hidden fields in old Gallery templates such as Snap Pixel, which cause "Hidden parameters are not allowed"; a template that had to be edited also loses its Gallery link, because GTM rejects a changed Gallery template with "This field is invalid (or unsupported)" on `galleryReference` – it imports as a custom template). *Check* rows need a person: a tag pointing to a trigger that is missing, a `{{variable}}` that does not exist in the container, or two items with the same name. If a *Fixed* row says the template code reads the removed field, update that template from the Gallery before publishing.
-   - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep.
+   - **Import check sheet:** every run also makes the file safe to import. *Fixed* rows are problems GTM would refuse that the script repaired (today: hidden fields in old Gallery templates such as Snap Pixel, which cause "Hidden parameters are not allowed"; a template that had to be edited also loses its Gallery link, because GTM rejects a changed Gallery template with "This field is invalid (or unsupported)" on `galleryReference` – it imports as a custom template). *Check* rows need a person: a tag pointing to a trigger that is missing, a `{{variable}}` that does not exist in the container, or two items with the same name. If a *Fixed* row says the template code reads the removed field, update that template from the Gallery before publishing. A template with no code (GTM error "template_data: Missing section ___INFO___") cannot be repaired from the file – export the container again from GTM so the template code is included.
+   - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep. When one copy is **paused**, the **active** item keeps the clean name and the paused copy is numbered (note "paused copy, delete it"); a trigger used only by paused tags counts as paused. Copies with the same code and the same firing conditions are only numbered – the trigger's name is never added to a tag name to tell them apart, and trigger words an earlier run added to tag names are removed on a re-run.
    - **amber rows – no consent condition:** triggers whose old name implied a consent gate ("OT Marketing …", "OT Performance …", "OT - …") but whose conditions test no consent variable. They are renamed to the standard format like every other trigger – no "OT", no "Marketing", no consent ending – and the Action says to add the consent condition later (roadmap Phase 4).
    - **grey rows – deleted, not used** (only with `--cleanup`): triggers and variables removed because nothing in use depends on them. Check the list before importing.
    - **blue rows – named from the old name only** (no config signal): make sure the name still says what the item does.
@@ -168,7 +168,7 @@ Every tag, trigger and variable is moved into one folder, decided by **which ven
 
 ## Clean-up – `--cleanup` (optional)
 
-Deletes triggers and variables that nothing in use depends on. Tags are never deleted, and renamed items are never deleted – they keep their IDs, so GTM shows them as *Modified*.
+Deletes triggers and variables that nothing in use depends on. Tags are never deleted, and renamed items are never deleted – they keep their IDs (rename in place to see them as *Modified* in GTM).
 
 - **A trigger is in use** if any tag fires or is blocked by it (**paused tags count as in use**), if a used trigger group contains it (followed through nested groups), or if a zone references it.
 - **A variable is in use** if its `{{name}}` appears in a tag, a used trigger, a client, a transformation or a zone, or inside another variable that is in use (followed through every level: a lookup table that reads a variable that reads a cookie keeps all three).
@@ -200,13 +200,27 @@ A vendor that is not in the built-in list still follows every rule: its tags are
 
 ## Testing the renamed file
 
-1. GTM → Admin → **Import Container** → choose `<name>_renamed.json`. Use the `_renamed.json` from this skill or the page, not the original export: only the renamed file has the import fixes.
-2. Workspace: **New** (e.g. "Naming review – test"); option **Overwrite** – the new workspace becomes exactly this file, the live container is untouched. Do not use **Merge**: it adds the renamed items next to the old ones, so every item would exist twice.
-3. Check the workspace "Changes": renamed items show as **Modified**; with `--cleanup`, the unused items show as **Deleted**; nothing should be **Added**.
-   - GTM matches items by **ID**. If renamed items show as Deleted + Added, the file was not made from the workspace it was imported into (for example a workspace created with Merge, or an export of another workspace or older version). Fix: create the test workspace, **export that same workspace**, rename that export, then import it back into the same workspace with **Overwrite**.
-4. Preview the standard journey (home, PLP, PDP, add to cart, basket, checkout, purchase on staging): the same tags fire on the same events as in the live version.
-5. Spot-check a few renamed variables inside Custom HTML tags – the new `{{names}}` resolve in Preview (no "undefined").
-6. Publish only after sign-off; the previous version stays in Versions for rollback.
+GTM's **Import Container** matches items by **name**, not by ID. So when a renamed file is imported, every renamed item shows as **Deleted + Added**, even though its ID is unchanged. To see renamed items as **Modified**, rename them in place instead.
+
+**Option A – rename in place (recommended, shows "Modified")**
+
+1. Build the script: `python3 gen_apps_script.py <original_export.json> <name>_renamed.json <name>_rename_in_place.gs [--folders]` (in `scripts/` of the GitHub repo).
+2. In GTM create a **new workspace** and note its number (the digits after `/workspaces/` in the address bar).
+3. script.google.com → New project → paste the `.gs` file → set `WORKSPACE_ID` → Services → add **Tag Manager API**.
+4. Run `run` with `DRY_RUN = true`, read the log, then set `DRY_RUN = false` and run again (re-run if it says "Time limit reached" until "ALL DONE").
+5. Renamed items show as **Modified**, unused ones (with `--cleanup`) as **Deleted**. Only names, `{{variable}}` references, tag-sequencing names and (optionally) folders change; nothing is published. An item whose current name is not the expected old name is skipped and logged.
+
+**Option B – import the renamed file**
+
+1. GTM → Admin → **Import Container** → choose `<name>_renamed.json` (it carries the import fixes).
+2. Workspace: **New**; option **Overwrite** – the new workspace becomes exactly this file; the live container is untouched. Do not use **Merge** for a full file: it adds the renamed items next to the old ones.
+3. Renamed items appear as **Deleted + Added** (name-based matching) – expected; the result is the same container with new names.
+
+**Then, for both options**
+
+1. Preview the standard journey (home, PLP, PDP, add to cart, basket, checkout, purchase on staging): the same tags fire on the same events as in the live version.
+2. Spot-check a few renamed variables inside Custom HTML tags – the new `{{names}}` resolve in Preview (no "undefined").
+3. Publish only after sign-off; the previous version stays in Versions for rollback.
 
 ## Script – write to `gtm_rename.py`
 
@@ -618,6 +632,9 @@ def import_check(cv):
         if m: used_by[m.group(1)].append(x)
     for ct in cv.get('customTemplate', []) or []:
         td = ct.get('templateData', '') or ''
+        if '___INFO___' not in td:
+            out.append(('Check', 'Template', ct.get('name', ''), 'Template has no code (template_data missing ___INFO___) – GTM refuses the whole file: "Missing section ___INFO___"',
+                        'Export the container again from GTM (Admin → Export Container) so the template code is included, then re-run')); continue
         m = TD_SECTION.search(td)
         if not m: continue
         try:
@@ -896,32 +913,41 @@ def main():
 
     # ---- uniqueness per entity type
     rerun = bool(tags) and sum(1 for x in tags if STD_TAG.match(x['name'])) >= 0.6 * len(tags)  # file was already renamed once
-    def dedupe(items, extra_fn, orig=None, combine=None):
+    def dedupe(items, extra_fn, orig=None, combine=None, same=None, rank=None):
+        """same: set-up key (true duplicates are only numbered); rank: 0 active, 1 paused (active keeps the clean name)"""
+        rk = rank or (lambda k: 0)
         groups = collections.defaultdict(list)
         for k, v in items.items(): groups[v[0].lower()].append(k)
         for key, ks in groups.items():
             if len(ks) == 1: continue
+            sk = collections.Counter(same(k) for k in ks) if same else None
+            cand = [k for k in ks if not sk or sk[same(k)] == 1]  # identical set-ups are duplicates, not different items
+            if rank:
+                act = [k for k in ks if rk(k) == 0]
+                cand = [k for k in cand if rk(k) == 0] if len(act) > 1 else []  # paused leftovers never get extra words
             if orig and rerun:  # re-run: names that were already made unique by an earlier run are kept
                 o = {k: NUM_SUFFIX.sub('', orig[k]).strip() for k in ks}
                 ol = [x.lower() for x in o.values()]
-                for k in list(ks):
+                for k in list(cand):
                     if o[k].lower().split(' - ')[0] == key.split(' - ')[0] and o[k].lower() != key and ol.count(o[k].lower()) == 1 \
                             and o[k].lower() not in {items[j][0].lower() for j in items if j not in ks} and items[k][1] != 'override':
-                        items[k][0] = o[k]; ks.remove(k)
-                if len(ks) < 2: continue
-            extras = {k: (extra_fn(k) or '') for k in ks}
+                        items[k][0] = o[k]; cand.remove(k)
+                if len(cand) < 2: cand = []
+            extras = {k: (extra_fn(k) or '') for k in cand}
             vals = [e.lower() for e in extras.values()]
-            for k in ks:
+            for k in cand:
                 e = extras[k]
                 if e and vals.count(e.lower()) == 1 and e.lower() not in items[k][0].lower():
                     items[k][0] = combine(k, e) if combine else f'{items[k][0]} - {e}'
         final = collections.Counter(); first = {}
-        for k, v in items.items():
+        order = sorted(items, key=lambda k: rk(k))  # stable: active items first, then paused copies
+        for k in order:
+            v = items[k]
             base = v[0]; final[base.lower()] += 1
             if final[base.lower()] == 1: first[base.lower()] = base
             else:
                 v[0] = f'{base} ({final[base.lower()]})'
-                v.append(f'DUPLICATE of "{first[base.lower()]}" – re-point anything using it, then delete')
+                v.append(f'DUPLICATE of "{first[base.lower()]}" – ' + ('paused copy, delete it' if rk(k) else 're-point anything using it, then delete'))
         return items
     if a.overrides:
         ov = {(r['Item'].strip().lower(), r['Old name'].strip()): r['New name'].strip() for r in csv.DictReader(open(a.overrides, encoding='utf-8')) if r.get('New name')}
@@ -941,12 +967,28 @@ def main():
         extra = o[len(new) + 3:]
         if set(re.findall(r'\b(MKT|ANL|FUNC)\b', extra)) - set(re.findall(r'\b(MKT|ANL|FUNC)\b', new)): return new
         return trig_combine(k, extra)
+    trig_by_id = {str(t['triggerId']): t for t in trigs}
+    def trig_key(name):  # 'Criteo - CE - Add To Cart - MKT (2)' -> 'ce - add to cart'
+        t = NUM_SUFFIX.sub('', re.sub(r'^[^-]+ - ', '', str(name))).strip()
+        return re.sub(r'\s+', ' ', re.sub(r'\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)', '', t)).strip().lower()
+    def trig_text_added(tg, new):
+        o = NUM_SUFFIX.sub('', std_tag_name(tg['name'])).strip()
+        if not o.lower().startswith(new.lower() + ' - '): return False
+        extra = re.sub(r'\s+', ' ', o[len(new) + 3:]).strip().lower()
+        keys = set()
+        for f in tg.get('firingTriggerId') or []:
+            f = str(f)
+            if f in new_trig: keys.add(trig_key(new_trig[f][0]))
+            if f in trig_by_id: keys.add(trig_key(trig_by_id[f]['name']))
+        return extra in keys
     for items, src, idk in ((new_tag, tags, 'tagId'), (new_trig, trigs, 'triggerId'), (new_var, vars_, 'variableId')):
         for x in src:
             v = items[str(x[idk]) if idk == 'triggerId' else x[idk]]
             if v[1] == 'override': continue
             if idk == 'triggerId' and not trig_parts[str(x[idk])][4] and trig_parts[str(x[idk])][1] != 'TG':
                 v[0] = keep_trigger(str(x[idk]), x['name'], v[0])  # Vendor - Type - Action - Consent, nothing repeated
+            elif idk == 'tagId' and trig_text_added(x, v[0]):
+                pass  # an earlier run added the trigger's name to tell copies apart: dropped, duplicates are numbered instead
             else:
                 v[0] = keep_existing(std_tag_name(x['name']) if idk == 'tagId' else x['name'], v[0])
     # ---- brand library: the same set-up gets the same name in every brand
@@ -1015,14 +1057,18 @@ def main():
             msg = f"LIBRARY: same set-up as in {e.get('brand') or 'another brand'} – name reused"
             if kind == 'trigger': it[3] = (it[3] + '; ' if it[3] else '') + msg
             else: it.append(msg)
-    dedupe(new_trig, lambda k: new_trig[k][2], {str(x['triggerId']): x['name'] for x in trigs}, trig_combine)
+    paused_tag = {x['tagId']: bool(x.get('paused')) for x in tags}
+    def trig_rank(k):  # 1 = used only by paused tags (a leftover copy); unused or used by an active tag = 0
+        us = fire_by.get(k, []) + block_by.get(k, [])
+        return 1 if us and all(paused_tag.get(t) for t in us) else 0
+    dedupe(new_trig, lambda k: new_trig[k][2], {str(x['triggerId']): x['name'] for x in trigs}, trig_combine, lambda k: fps['trigger'][k], trig_rank)
     def tag_extra(k):
         tg = next(x for x in tags if x['tagId'] == k)
         f = (tg.get('firingTriggerId') or [None])[0]
         if f and str(f) in new_trig:
-            return re.sub(r'\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)', '', re.sub(r'^[^-]+ - ', '', new_trig[str(f)][0]))
+            return re.sub(r'\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)', '', NUM_SUFFIX.sub('', re.sub(r'^[^-]+ - ', '', new_trig[str(f)][0])).strip())
         return new_tag[k][2]
-    dedupe(new_tag, tag_extra, {x['tagId']: std_tag_name(x['name']) for x in tags})
+    dedupe(new_tag, tag_extra, {x['tagId']: std_tag_name(x['name']) for x in tags}, None, lambda k: fps['tag'][k], lambda k: 1 if paused_tag.get(k) else 0)
     dedupe(new_var, lambda k: new_var[k][2], {x['variableId']: x['name'] for x in vars_})
     builtin = {b.get('name', '').lower() for b in cv.get('builtInVariable', []) or []}
     for items in (new_tag, new_trig, new_var):

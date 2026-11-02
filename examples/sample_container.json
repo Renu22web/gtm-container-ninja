@@ -1,1 +1,842 @@
-{"exportFormatVersion": 2, "exportTime": "2026-10-16 10:00:00", "containerVersion": {"path": "x", "accountId": "111", "containerId": "222", "containerVersionId": "0", "container": {"name": "Core Merchant - Test", "publicId": "GTM-TEST"}, "tag": [{"tagId": "1", "name": "Facebook Pixel - Add To Basket", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>fbq('track','AddToCart',{value:{{DLV - Basket Total}}},{eventID:{{CJS - Event ID}}});</script>"}], "firingTriggerId": ["10"], "blockingTriggerId": ["15"], "accountId": "111", "containerId": "222"}, {"tagId": "2", "name": "Tik Tok Base", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>ttq.load('{{TikTok - ID}}');ttq.page();</script>"}], "accountId": "111", "containerId": "222"}, {"tagId": "3", "name": "Tik Tok ATC", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>ttq.track('AddToCart')</script>"}], "firingTriggerId": ["10", "52"], "setupTag": [{"tagName": "Tik Tok Base", "stopOnSetupFailure": false}], "accountId": "111", "containerId": "222"}, {"tagId": "4", "name": "GA4 Event - add to cart", "type": "gaawe", "parameter": [{"type": "TEMPLATE", "key": "eventName", "value": "add_to_cart"}, {"type": "TEMPLATE", "key": "measurementIdOverride", "value": "{{GA4 ID}}"}], "firingTriggerId": ["11"], "setupTag": [{"tagName": "GA4 - Configuration"}], "accountId": "111", "containerId": "222"}, {"tagId": "5", "name": "GA4 - Configuration", "type": "googtag", "parameter": [{"type": "TEMPLATE", "key": "tagId", "value": "G-XXXX"}], "accountId": "111", "containerId": "222"}, {"tagId": "6", "name": "AWin - Conversion Tag - Image", "type": "img", "parameter": [{"type": "TEMPLATE", "key": "url", "value": "https://www.awin1.com/sread.img?merchant={{AWin - Account ID - MASTER LOOKUP}}"}], "firingTriggerId": ["12", "50"], "accountId": "111", "containerId": "222"}, {"tagId": "7", "name": "Awin JS (Consent)", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>AWIN.Tracking.consent=true</script>"}], "firingTriggerId": ["13"], "accountId": "111", "containerId": "222"}, {"tagId": "8", "name": "Consent Mode - Default", "type": "cvt_222_99", "parameter": [{"type": "TEMPLATE", "key": "command", "value": "default"}, {"type": "TEMPLATE", "key": "ad_storage", "value": "{{Template - Consent mode Advertising}}"}], "firingTriggerId": ["14"], "accountId": "111", "containerId": "222"}, {"tagId": "9", "name": "Clear ecom DL", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>dataLayer.push({ecommerce:null})</script>"}], "firingTriggerId": ["11"], "accountId": "111", "containerId": "222"}, {"tagId": "20", "name": "RTB House Product Page", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script src=\"https://creativecdn.com/tags?id=pr_X_offer_{{DLV - Product item ID}}\"></script>"}], "firingTriggerId": ["16"], "accountId": "111", "containerId": "222"}, {"tagId": "21", "name": "Facebook - Add to cart", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>fbq('track','AddToCart')</script>"}], "firingTriggerId": ["10"], "accountId": "111", "containerId": "222"}], "trigger": [{"triggerId": "10", "name": "OT Marketing - ecom_event (add_to_cart) Facebook", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "ecom_event"}]}], "filter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{DLV - event_name}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "add_to_cart"}]}, {"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{Template - Marketing Cookies Allowed}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "true"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "11", "name": "CE - ecom_event (add_to_cart)", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "ecom_event"}]}], "filter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{DLV - event_name}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "add_to_cart"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "12", "name": "OT Marketing Checkout Complete - AWin Site Only", "type": "PAGEVIEW", "filter": [{"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{Page URL}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "complete"}]}, {"type": "MATCH_REGEX", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{AWin - Account ID - MASTER LOOKUP}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "false|undefined"}, {"type": "BOOLEAN", "key": "negate", "value": "true"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "13", "name": "CE - OneTrustGroupsUpdated", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "OneTrustGroupsUpdated"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "14", "name": "Consent Initialisation", "type": "CONSENT_INIT", "accountId": "111", "containerId": "222"}, {"triggerId": "15", "name": "blog page", "type": "PAGEVIEW", "filter": [{"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{DLV - Page Category}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "blog"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "16", "name": "OT Marketing - RTB House Product Page Trigger", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "ecom_event"}]}], "filter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{DLV - event_name}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "view_item"}]}, {"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{Custom JS - Marketing Cookies Allowed}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "true"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "17", "name": "TG - No marketing consent then consent", "type": "TRIGGER_GROUP", "parameter": [{"type": "LIST", "key": "triggerIds", "list": [{"type": "TEMPLATE", "key": "triggerId", "value": "13"}, {"type": "TEMPLATE", "key": "triggerId", "value": "14"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "50", "name": "OT - Awin Site Only", "type": "PAGEVIEW", "filter": [{"type": "MATCH_REGEX", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{AWin - Account ID - MASTER LOOKUP}}"}, {"type": "TEMPLATE", "key": "arg1", "value": ".+"}]}]}, {"triggerId": "51", "name": "OT Performance - Add to Wishlist", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "addToWishlist"}]}]}, {"triggerId": "52", "name": "OT CE - gtm_consent_default (TikTok)", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "gtm_consent_default"}]}], "filter": [{"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{Custom JS - Marketing Cookies Allowed}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "true"}]}]}], "variable": [{"variableId": "30", "name": "DLV - Basket Total", "type": "v", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "basket.total"}], "accountId": "111", "containerId": "222"}, {"variableId": "31", "name": "CJS - Event ID", "type": "jsm", "parameter": [{"type": "TEMPLATE", "key": "javascript", "value": "function(){return {{js - connectStart}}+\".\"+{{Cookie - Visit}}}"}], "accountId": "111", "containerId": "222"}, {"variableId": "32", "name": "Tik Tok ID", "type": "c", "parameter": [{"type": "TEMPLATE", "key": "value", "value": "C123"}], "accountId": "111", "containerId": "222"}, {"variableId": "33", "name": "Template - Marketing Cookies Allowed", "type": "cvt_222_50", "parameter": [], "accountId": "111", "containerId": "222"}, {"variableId": "34", "name": "Custom JS - Marketing Cookies Allowed", "type": "jsm", "parameter": [{"type": "TEMPLATE", "key": "javascript", "value": "function(){return true}"}], "accountId": "111", "containerId": "222"}, {"variableId": "35", "name": "AWin - Account ID - MASTER LOOKUP", "type": "smm", "parameter": [{"type": "TEMPLATE", "key": "input", "value": "{{DLV - Site Name}}"}], "accountId": "111", "containerId": "222"}, {"variableId": "36", "name": "DLV - event_name", "type": "v", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "event_name"}], "accountId": "111", "containerId": "222"}, {"variableId": "37", "name": "Cookie - Visit", "type": "k", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "visit_id"}], "accountId": "111", "containerId": "222"}, {"variableId": "38", "name": "DLV - Site Name", "type": "v", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "siteName"}], "accountId": "111", "containerId": "222"}, {"variableId": "39", "name": "DL - Site Name", "type": "v", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "siteName"}], "accountId": "111", "containerId": "222"}, {"variableId": "40", "name": "TikTok - ID", "type": "c", "parameter": [{"type": "TEMPLATE", "key": "value", "value": "C123"}], "accountId": "111", "containerId": "222"}], "folder": [], "customTemplate": [{"templateId": "99", "name": "Consent Mode (Google tags)"}, {"templateId": "50", "name": "THG Consent variable"}]}}
+{
+  "exportFormatVersion": 2,
+  "exportTime": "2026-10-16 10:00:00",
+  "containerVersion": {
+    "path": "x",
+    "accountId": "111",
+    "containerId": "222",
+    "containerVersionId": "0",
+    "container": {
+      "name": "Core Merchant - Test",
+      "publicId": "GTM-TEST"
+    },
+    "tag": [
+      {
+        "tagId": "1",
+        "name": "Facebook Pixel - Add To Basket",
+        "type": "html",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "html",
+            "value": "<script>fbq('track','AddToCart',{value:{{DLV - Basket Total}}},{eventID:{{CJS - Event ID}}});</script>"
+          }
+        ],
+        "firingTriggerId": [
+          "10"
+        ],
+        "blockingTriggerId": [
+          "15"
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "2",
+        "name": "Tik Tok Base",
+        "type": "html",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "html",
+            "value": "<script>ttq.load('{{TikTok - ID}}');ttq.page();</script>"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "3",
+        "name": "Tik Tok ATC",
+        "type": "html",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "html",
+            "value": "<script>ttq.track('AddToCart')</script>"
+          }
+        ],
+        "firingTriggerId": [
+          "10",
+          "52"
+        ],
+        "setupTag": [
+          {
+            "tagName": "Tik Tok Base",
+            "stopOnSetupFailure": false
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "4",
+        "name": "GA4 Event - add to cart",
+        "type": "gaawe",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "eventName",
+            "value": "add_to_cart"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "measurementIdOverride",
+            "value": "{{GA4 ID}}"
+          }
+        ],
+        "firingTriggerId": [
+          "11"
+        ],
+        "setupTag": [
+          {
+            "tagName": "GA4 - Configuration"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "5",
+        "name": "GA4 - Configuration",
+        "type": "googtag",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "tagId",
+            "value": "G-XXXX"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "6",
+        "name": "AWin - Conversion Tag - Image",
+        "type": "img",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "url",
+            "value": "https://www.awin1.com/sread.img?merchant={{AWin - Account ID - MASTER LOOKUP}}"
+          }
+        ],
+        "firingTriggerId": [
+          "12",
+          "50"
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "7",
+        "name": "Awin JS (Consent)",
+        "type": "html",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "html",
+            "value": "<script>AWIN.Tracking.consent=true</script>"
+          }
+        ],
+        "firingTriggerId": [
+          "13"
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "8",
+        "name": "Consent Mode - Default",
+        "type": "cvt_222_99",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "command",
+            "value": "default"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "ad_storage",
+            "value": "{{Template - Consent mode Advertising}}"
+          }
+        ],
+        "firingTriggerId": [
+          "14"
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "9",
+        "name": "Clear ecom DL",
+        "type": "html",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "html",
+            "value": "<script>dataLayer.push({ecommerce:null})</script>"
+          }
+        ],
+        "firingTriggerId": [
+          "11"
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "20",
+        "name": "RTB House Product Page",
+        "type": "html",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "html",
+            "value": "<script src=\"https://creativecdn.com/tags?id=pr_X_offer_{{DLV - Product item ID}}\"></script>"
+          }
+        ],
+        "firingTriggerId": [
+          "16"
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "tagId": "21",
+        "name": "Facebook - Add to cart",
+        "type": "html",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "html",
+            "value": "<script>fbq('track','AddToCart')</script>"
+          }
+        ],
+        "firingTriggerId": [
+          "10"
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      }
+    ],
+    "trigger": [
+      {
+        "triggerId": "10",
+        "name": "OT Marketing - ecom_event (add_to_cart) Facebook",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "ecom_event"
+              }
+            ]
+          }
+        ],
+        "filter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{DLV - event_name}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "add_to_cart"
+              }
+            ]
+          },
+          {
+            "type": "CONTAINS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{Template - Marketing Cookies Allowed}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "true"
+              }
+            ]
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "triggerId": "11",
+        "name": "CE - ecom_event (add_to_cart)",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "ecom_event"
+              }
+            ]
+          }
+        ],
+        "filter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{DLV - event_name}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "add_to_cart"
+              }
+            ]
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "triggerId": "12",
+        "name": "OT Marketing Checkout Complete - AWin Site Only",
+        "type": "PAGEVIEW",
+        "filter": [
+          {
+            "type": "CONTAINS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{Page URL}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "complete"
+              }
+            ]
+          },
+          {
+            "type": "MATCH_REGEX",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{AWin - Account ID - MASTER LOOKUP}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "false|undefined"
+              },
+              {
+                "type": "BOOLEAN",
+                "key": "negate",
+                "value": "true"
+              }
+            ]
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "triggerId": "13",
+        "name": "CE - OneTrustGroupsUpdated",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "OneTrustGroupsUpdated"
+              }
+            ]
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "triggerId": "14",
+        "name": "Consent Initialisation",
+        "type": "CONSENT_INIT",
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "triggerId": "15",
+        "name": "blog page",
+        "type": "PAGEVIEW",
+        "filter": [
+          {
+            "type": "CONTAINS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{DLV - Page Category}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "blog"
+              }
+            ]
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "triggerId": "16",
+        "name": "OT Marketing - RTB House Product Page Trigger",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "ecom_event"
+              }
+            ]
+          }
+        ],
+        "filter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{DLV - event_name}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "view_item"
+              }
+            ]
+          },
+          {
+            "type": "CONTAINS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{Custom JS - Marketing Cookies Allowed}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "true"
+              }
+            ]
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "triggerId": "17",
+        "name": "TG - No marketing consent then consent",
+        "type": "TRIGGER_GROUP",
+        "parameter": [
+          {
+            "type": "LIST",
+            "key": "triggerIds",
+            "list": [
+              {
+                "type": "TEMPLATE",
+                "key": "triggerId",
+                "value": "13"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "triggerId",
+                "value": "14"
+              }
+            ]
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "triggerId": "50",
+        "name": "OT - Awin Site Only",
+        "type": "PAGEVIEW",
+        "filter": [
+          {
+            "type": "MATCH_REGEX",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{AWin - Account ID - MASTER LOOKUP}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": ".+"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "triggerId": "51",
+        "name": "OT Performance - Add to Wishlist",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "addToWishlist"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "triggerId": "52",
+        "name": "OT CE - gtm_consent_default (TikTok)",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "gtm_consent_default"
+              }
+            ]
+          }
+        ],
+        "filter": [
+          {
+            "type": "CONTAINS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{Custom JS - Marketing Cookies Allowed}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "true"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "variable": [
+      {
+        "variableId": "30",
+        "name": "DLV - Basket Total",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "basket.total"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "31",
+        "name": "CJS - Event ID",
+        "type": "jsm",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "javascript",
+            "value": "function(){return {{js - connectStart}}+\".\"+{{Cookie - Visit}}}"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "32",
+        "name": "Tik Tok ID",
+        "type": "c",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "value",
+            "value": "C123"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "33",
+        "name": "Template - Marketing Cookies Allowed",
+        "type": "cvt_222_50",
+        "parameter": [],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "34",
+        "name": "Custom JS - Marketing Cookies Allowed",
+        "type": "jsm",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "javascript",
+            "value": "function(){return true}"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "35",
+        "name": "AWin - Account ID - MASTER LOOKUP",
+        "type": "smm",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "input",
+            "value": "{{DLV - Site Name}}"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "36",
+        "name": "DLV - event_name",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "event_name"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "37",
+        "name": "Cookie - Visit",
+        "type": "k",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "visit_id"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "38",
+        "name": "DLV - Site Name",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "siteName"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "39",
+        "name": "DL - Site Name",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "siteName"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "variableId": "40",
+        "name": "TikTok - ID",
+        "type": "c",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "value",
+            "value": "C123"
+          }
+        ],
+        "accountId": "111",
+        "containerId": "222"
+      },
+      {
+        "accountId": "111",
+        "containerId": "222",
+        "variableId": "41",
+        "name": "GA4 ID",
+        "type": "c",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "value",
+            "value": "G-XXXXXXXXXX"
+          }
+        ]
+      },
+      {
+        "accountId": "111",
+        "containerId": "222",
+        "variableId": "42",
+        "name": "Template - Consent mode Advertising",
+        "type": "c",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "value",
+            "value": "denied"
+          }
+        ]
+      },
+      {
+        "accountId": "111",
+        "containerId": "222",
+        "variableId": "43",
+        "name": "DLV - Product item ID",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "INTEGER",
+            "key": "dataLayerVersion",
+            "value": "2"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "setDefaultValue",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "ecommerce.items.0.item_id"
+          }
+        ]
+      },
+      {
+        "accountId": "111",
+        "containerId": "222",
+        "variableId": "44",
+        "name": "DLV - Page Category",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "INTEGER",
+            "key": "dataLayerVersion",
+            "value": "2"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "setDefaultValue",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "pageCategory"
+          }
+        ]
+      },
+      {
+        "accountId": "111",
+        "containerId": "222",
+        "variableId": "45",
+        "name": "js - connectStart",
+        "type": "j",
+        "parameter": [
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "performance.timing.connectStart"
+          }
+        ]
+      }
+    ],
+    "folder": [],
+    "customTemplate": [
+      {
+        "templateId": "99",
+        "name": "Consent Mode (Google tags)",
+        "accountId": "111",
+        "containerId": "222",
+        "templateData": "___INFO___\n\n{\n  \"type\": \"TAG\",\n  \"id\": \"cvt_temp_public_id\",\n  \"version\": 1,\n  \"securityGroups\": [],\n  \"displayName\": \"Consent Mode (Google tags)\",\n  \"brand\": {\n    \"id\": \"brand_dummy\",\n    \"displayName\": \"\"\n  },\n  \"description\": \"Sample template for GTM Container Ninja\",\n  \"containerContexts\": [\n    \"WEB\"\n  ]\n}\n\n\n___TEMPLATE_PARAMETERS___\n\n[\n  {\n    \"type\": \"TEXT\",\n    \"name\": \"command\",\n    \"displayName\": \"Command\",\n    \"simpleValueType\": true\n  },\n  {\n    \"type\": \"TEXT\",\n    \"name\": \"ad_storage\",\n    \"displayName\": \"ad_storage\",\n    \"simpleValueType\": true\n  }\n]\n\n\n___SANDBOXED_JS_FOR_WEB_TEMPLATE___\n\nconst setDefaultConsentState = require('setDefaultConsentState');\nconst updateConsentState = require('updateConsentState');\nconst s = {ad_storage: data.ad_storage === 'granted' ? 'granted' : 'denied'};\nif (data.command === 'default') { setDefaultConsentState(s); } else { updateConsentState(s); }\ndata.gtmOnSuccess();\n\n\n___WEB_PERMISSIONS___\n\n[\n  {\n    \"instance\": {\n      \"key\": {\n        \"publicId\": \"access_consent\",\n        \"versionId\": \"1\"\n      },\n      \"param\": [\n        {\n          \"key\": \"consentTypes\",\n          \"value\": {\n            \"type\": 2,\n            \"listItem\": [\n              {\n                \"type\": 3,\n                \"mapKey\": [\n                  {\n                    \"type\": 1,\n                    \"string\": \"consentType\"\n                  },\n                  {\n                    \"type\": 1,\n                    \"string\": \"read\"\n                  },\n                  {\n                    \"type\": 1,\n                    \"string\": \"write\"\n                  }\n                ],\n                \"mapValue\": [\n                  {\n                    \"type\": 1,\n                    \"string\": \"ad_storage\"\n                  },\n                  {\n                    \"type\": 8,\n                    \"boolean\": true\n                  },\n                  {\n                    \"type\": 8,\n                    \"boolean\": true\n                  }\n                ]\n              }\n            ]\n          }\n        }\n      ]\n    },\n    \"clientAnnotations\": {\n      \"isEditedByUser\": true\n    },\n    \"isRequired\": true\n  }\n]\n\n\n___TESTS___\n\nscenarios: []\n\n\n___NOTES___\n\nSample.\n"
+      },
+      {
+        "templateId": "50",
+        "name": "THG Consent variable",
+        "accountId": "111",
+        "containerId": "222",
+        "templateData": "___INFO___\n\n{\n  \"type\": \"MACRO\",\n  \"id\": \"cvt_temp_public_id\",\n  \"version\": 1,\n  \"securityGroups\": [],\n  \"displayName\": \"THG Consent variable\",\n  \"brand\": {\n    \"id\": \"brand_dummy\",\n    \"displayName\": \"\"\n  },\n  \"description\": \"Sample template for GTM Container Ninja\",\n  \"containerContexts\": [\n    \"WEB\"\n  ]\n}\n\n\n___TEMPLATE_PARAMETERS___\n\n[]\n\n\n___SANDBOXED_JS_FOR_WEB_TEMPLATE___\n\nreturn true;\n\n\n___WEB_PERMISSIONS___\n\n[]\n\n\n___TESTS___\n\nscenarios: []\n\n\n___NOTES___\n\nSample.\n"
+      }
+    ]
+  }
+}
