@@ -38,7 +38,7 @@ The page exports the same files (Brand library, My vendors, Team rules, Fix list
    - **Select & export** – tick items (or "select all shown") and export only those, with the triggers, variables and templates they need. A partial file is imported with **Merge → Overwrite conflicting tags, triggers and variables**, never with Overwrite (that would delete everything not in the file).
    - **Find & replace**, **History** (undo/redo of every name change), **Name score** (share of names in the format, before/after, minus duplicates and missing consent), **Compare brands** (load other exports: vendors and tag actions per brand, what differs, CSV) and **Test after import** (journey test plan per step – home, category, product, add to cart, basket, checkout, purchase – as JSON/CSV for the GTM journey-tester skill).
 5. **Review before handing over.** Open `<name>_summary.xlsx` (sheets: Summary, Rename Map, Duplicates – delete, No consent condition, Deleted – not used (with `--cleanup`), Import check) and check:
-   - **Import check sheet:** every run also makes the file safe to import. *Fixed* rows are problems GTM would refuse that the script repaired (today: hidden fields in old Gallery templates such as Snap Pixel, which cause "Hidden parameters are not allowed"; a template that had to be edited also loses its Gallery link, because GTM rejects a changed Gallery template with "This field is invalid (or unsupported)" on `galleryReference` – it imports as a custom template). *Check* rows need a person: a tag pointing to a trigger that is missing, a `{{variable}}` that does not exist in the container, or two items with the same name. If a *Fixed* row says the template code reads the removed field, update that template from the Gallery before publishing. A template with no code (GTM error "template_data: Missing section ___INFO___") cannot be repaired from the file – export the container again from GTM so the template code is included.
+   - **Import check sheet:** every run also makes the file safe to import. *Fixed* rows are problems GTM would refuse that the script repaired (today: hidden fields in old Gallery templates such as Snap Pixel, which cause "Hidden parameters are not allowed"; a template that had to be edited also loses its Gallery link, because GTM rejects a changed Gallery template with "This field is invalid (or unsupported)" on `galleryReference` – it imports as a custom template). *Check* rows need a person: a tag pointing to a trigger that is missing, a `{{variable}}` that does not exist in the container, or two items with the same name. If a *Fixed* row says the template code reads the removed field, update that template from the Gallery before publishing.
    - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep. When one copy is **paused**, the **active** item keeps the clean name and the paused copy is numbered (note "paused copy, delete it"); a trigger used only by paused tags counts as paused. Copies with the same code and the same firing conditions are only numbered – the trigger's name is never added to a tag name to tell them apart, and trigger words an earlier run added to tag names are removed on a re-run.
    - **amber rows – no consent condition:** triggers whose old name implied a consent gate ("OT Marketing …", "OT Performance …", "OT - …") but whose conditions test no consent variable. They are renamed to the standard format like every other trigger – no "OT", no "Marketing", no consent ending – and the Action says to add the consent condition later (roadmap Phase 4).
    - **grey rows – deleted, not used** (only with `--cleanup`): triggers and variables removed because nothing in use depends on them. Check the list before importing.
@@ -225,7 +225,6 @@ GTM's **Import Container** matches items by **name**, not by ID. So when a renam
 ## Script – write to `gtm_rename.py`
 
 ```python
-
 #!/usr/bin/env python3
 """GTM naming-convention renamer.
 
@@ -632,9 +631,6 @@ def import_check(cv):
         if m: used_by[m.group(1)].append(x)
     for ct in cv.get('customTemplate', []) or []:
         td = ct.get('templateData', '') or ''
-        if '___INFO___' not in td:
-            out.append(('Check', 'Template', ct.get('name', ''), 'Template has no code (template_data missing ___INFO___) – GTM refuses the whole file: "Missing section ___INFO___"',
-                        'Export the container again from GTM (Admin → Export Container) so the template code is included, then re-run')); continue
         m = TD_SECTION.search(td)
         if not m: continue
         try:
@@ -1296,5 +1292,4 @@ def write_xlsx(path, cv, base, rows, refs, seq, made_folders, vendors, fixes=())
 
 if __name__ == '__main__':
     main()
-
 ```
