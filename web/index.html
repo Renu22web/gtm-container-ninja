@@ -768,6 +768,17 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
     else if (typeof o === 'string') yield o;
   }
   const joinStrings = o => [...allStrings(o)].join(' ');
+  function varSettingOf(vr) {  // a setting that changes what the variable returns: default value / format value
+      const p = params(vr), fv = vr.formatValue || {};
+      if (S(p.setDefaultValue || '').toLowerCase() === 'true') {
+        const d = S(p.defaultValue || '');
+        return 'Default ' + (d && d.length <= 20 && !d.includes('{{') ? d : !d ? 'Empty' : 'Value');
+      }
+      const cu = (fv.convertUndefinedToValue && typeof fv.convertUndefinedToValue === 'object') ? fv.convertUndefinedToValue.value : undefined;
+      if (cu !== undefined && cu !== null) return 'Undefined to ' + (cu && S(cu).length <= 20 ? S(cu) : 'Empty');
+      if (Object.keys(fv).length) return 'Formatted';
+      return '';
+    }
   function params(obj) {
     const out = {};
     for (const p of obj.parameter || []) {
@@ -1167,7 +1178,8 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
     const codeKey = c => fnv(S(c).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').replace(/\{\{[^{}]+\}\}/g, '{{}}').replace(/\s+/g, '').replace(/\d+/g, '').toLowerCase());  // variable names inside differ per brand
     const varKey = vr => {
       const t = vr.type || '', p = params(vr);
-      if (['v', 'k', 'j'].includes(t)) return S(p.name ?? '');
+      if (t === 'v') return S(p.name ?? '') + (varSettingOf(vr) ? '|' + varSettingOf(vr) : '');  // default / format value change what it returns
+      if (['k', 'j'].includes(t)) return S(p.name ?? '');
       if (t === 'jsm') {
         const js = S(p.javascript ?? '').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').replace(/\s+/g, '').replace(/\{\{[^{}]+\}\}/g, '{{}}');
         return 'js:' + codeKey(js) + (js.length >= 60 ? '' : '|n:' + newVar.get(vr.variableId)[0].toLowerCase());  // short code alone says too little
@@ -1253,8 +1265,9 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
       const local = new Set([...[...c.matchAll(/\b(?:var|let|const|function)\s+([A-Za-z_$][\w$]*)/g)].map(m => m[1]), ...[...c.matchAll(/\bcatch\s*\(\s*([A-Za-z_$][\w$]*)/g)].map(m => m[1])]);
       return [...new Set(c.match(/[A-Za-z_$][\w$]{3,}/g) || [])].filter(t => !JS_WORDS.has(t) && !local.has(t));
     };
+    const varSetting = k => varSettingOf(varById.get(k));
     const varDetail = (k, group) => {  // what only this variable's code uses: a variable it reads, else a property it reads, else a name in its code
-      if (varById.get(k).type !== 'jsm') return '';
+      if (varById.get(k).type !== 'jsm') return varSetting(k);
       const oth = group.filter(j => j !== k && varById.get(j).type === 'jsm');
       const oRefs = new Set(oth.flatMap(j => jsRefs(j).map(r => r.toLowerCase())));
       const refs = jsRefs(k).filter(r => !oRefs.has(r.toLowerCase()));

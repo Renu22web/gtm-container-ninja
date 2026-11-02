@@ -39,7 +39,7 @@ The page exports the same files (Brand library, My vendors, Team rules, Fix list
    - **Find & replace**, **History** (undo/redo of every name change), **Name score** (share of names in the format, before/after, minus duplicates and missing consent), **Compare brands** (load other exports: vendors and tag actions per brand, what differs, CSV) and **Test after import** (journey test plan per step – home, category, product, add to cart, basket, checkout, purchase – as JSON/CSV for the GTM journey-tester skill).
 5. **Review before handing over.** Open `<name>_summary.xlsx` (sheets: Summary, Rename Map, Duplicates – delete, No consent condition, Deleted – not used (with `--cleanup`), Import check) and check:
    - **Import check sheet:** every run also makes the file safe to import. *Fixed* rows are problems GTM would refuse that the script repaired (today: hidden fields in old Gallery templates such as Snap Pixel, which cause "Hidden parameters are not allowed"; a template that had to be edited also loses its Gallery link, because GTM rejects a changed Gallery template with "This field is invalid (or unsupported)" on `galleryReference` – it imports as a custom template). *Check* rows need a person: a tag pointing to a trigger that is missing, a `{{variable}}` that does not exist in the container, or two items with the same name. If a *Fixed* row says the template code reads the removed field, update that template from the Gallery before publishing. A template with no code (GTM error "template_data: Missing section ___INFO___") cannot be repaired from the file – export the container again from GTM so the template code is included.
-   - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep. **Same name, different set-up is never a duplicate:** when two items end up with the same name but are set up differently (e.g. old names `cjs - AI Shopping Assistant Experiment Present` and `cjs -AI Shopping Assistant Experiment Present` with different code), a word only one of them uses is added – a variable its code reads, else a property it reads: `CJS - AI Shopping Assistant Experiment Present - fuel_coach_experiment_wave_01`, `CJS - Product Page Product ID - ProdId from URL`. If nothing tells them apart, the copy is numbered with the note "NAME CLASH … different set-up, keep both and check the name" (Action "Check name", never "Delete"). **Paused tags are never deleted or flagged:** when a paused item has the same set-up as a live one, the **live** item keeps the clean name and the paused one gets the same formatted name with ` - Paused` (`Criteo - cHTML - addToCart - Paused`; for a trigger before the consent ending: `Criteo - CE - Add to cart - Paused - MKT`), note "PAUSED copy of live …", Action "Rename"; a trigger or variable used only by paused tags counts as paused (`DLV - ecommerce.items - Paused`), so a live item never gets the `(2)`. Live copies with the same code and the same firing conditions are only numbered – the trigger's name is never added to a tag name to tell them apart, and trigger words an earlier run added to tag names are removed on a re-run.
+   - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep. **Same name, different set-up is never a duplicate:** when two items end up with the same name but are set up differently (e.g. old names `cjs - AI Shopping Assistant Experiment Present` and `cjs -AI Shopping Assistant Experiment Present` with different code), a word only one of them uses is added – a variable its code reads, else a property it reads: `CJS - AI Shopping Assistant Experiment Present - fuel_coach_experiment_wave_01`, `CJS - Product Page Product ID - ProdId from URL`. For other variables the setting that changes what they return is added: `DLV - search_term` (no default) and `DLV - search_term - Default Empty` (Set Default Value / Convert undefined to ''). If nothing tells them apart, the copy is numbered with the note "NAME CLASH … different set-up, keep both and check the name" (Action "Check name", never "Delete"). **Paused tags are never deleted or flagged:** when a paused item has the same set-up as a live one, the **live** item keeps the clean name and the paused one gets the same formatted name with ` - Paused` (`Criteo - cHTML - addToCart - Paused`; for a trigger before the consent ending: `Criteo - CE - Add to cart - Paused - MKT`), note "PAUSED copy of live …", Action "Rename"; a trigger or variable used only by paused tags counts as paused (`DLV - ecommerce.items - Paused`), so a live item never gets the `(2)`. Live copies with the same code and the same firing conditions are only numbered – the trigger's name is never added to a tag name to tell them apart, and trigger words an earlier run added to tag names are removed on a re-run.
    - **amber rows – no consent condition:** triggers whose old name implied a consent gate ("OT Marketing …", "OT Performance …", "OT - …") but whose conditions test no consent variable. They are renamed to the standard format like every other trigger – no "OT", no "Marketing", no consent ending – and the Action says to add the consent condition later (roadmap Phase 4).
    - **grey rows – deleted, not used** (only with `--cleanup`): triggers and variables removed because nothing in use depends on them. Check the list before importing.
    - **blue rows – named from the old name only** (no config signal): make sure the name still says what the item does.
@@ -617,6 +617,16 @@ def consent_cat(left, right):
     if 'functional' in l or 'c0003' in r: return 'FUNC'
     return 'MKT'
 
+def var_setting_of(vr):  # a setting that changes what the variable returns: default value / format value
+    p = params(vr); fv = vr.get('formatValue') or {}
+    if str(p.get('setDefaultValue', '')).lower() == 'true':
+        d = str(p.get('defaultValue', '') or '')
+        return 'Default ' + (d if d and len(d) <= 20 and '{{' not in d else 'Empty' if not d else 'Value')
+    cu = (fv.get('convertUndefinedToValue') or {}).get('value') if isinstance(fv.get('convertUndefinedToValue'), dict) else None
+    if cu is not None: return 'Undefined to ' + (str(cu) if cu and len(str(cu)) <= 20 else 'Empty')
+    if fv: return 'Formatted'
+    return ''
+
 # ---------------------------------------------------------------- tag naming
 TRACK_RX = [
     r"fbq\(\s*['\"](?:track|trackCustom)['\"]\s*,\s*['\"]([\w ]+)", r"ttq\.track\(\s*['\"](\w+)", r"snaptr\(\s*['\"]track['\"]\s*,\s*['\"](\w+)",
@@ -1113,7 +1123,8 @@ def main():
     code_key = lambda c: fnv(re.sub(r'\d+', '', re.sub(r'\s+', '', re.sub(r'\{\{[^{}]+\}\}', '{{}}', re.sub(r'/\*.*?\*/|//[^\n]*', '', str(c), flags=re.S)))).lower())  # variable names inside differ per brand
     def var_key(vr):
         t = vr.get('type', ''); p = params(vr)
-        if t in ('v', 'k', 'j'): return str(p.get('name', ''))
+        if t == 'v': return str(p.get('name', '')) + ('|' + var_setting_of(vr) if var_setting_of(vr) else '')  # default / format value change what it returns
+        if t in ('k', 'j'): return str(p.get('name', ''))
         if t == 'jsm':
             js = re.sub(r'\{\{[^{}]+\}\}', '{{}}', re.sub(r'\s+', '', re.sub(r'/\*.*?\*/|//[^\n]*', '', str(p.get('javascript', '')), flags=re.S)))
             return 'js:' + code_key(js) + ('' if len(js) >= 60 else '|n:' + new_var[vr['variableId']][0].lower())  # short code alone says too little
@@ -1210,8 +1221,9 @@ def main():
         c = js_code(k)
         local = set(re.findall(r'\b(?:var|let|const|function)\s+([A-Za-z_$][\w$]*)', c)) | set(re.findall(r'\bcatch\s*\(\s*([A-Za-z_$][\w$]*)', c))
         return [t for t in dict.fromkeys(re.findall(r'[A-Za-z_$][\w$]{3,}', c)) if t not in JS_WORDS and t not in local]
+    var_setting = lambda k: var_setting_of(var_by_id[k])
     def var_detail(k, group):  # what only this variable's code uses: a variable it reads, else a property it reads, else a name in its code
-        if var_by_id[k].get('type') != 'jsm': return ''
+        if var_by_id[k].get('type') != 'jsm': return var_setting(k)
         oth = [j for j in group if j != k and var_by_id[j].get('type') == 'jsm']
         o_refs = {r.lower() for j in oth for r in js_refs(j)}
         refs = [r for r in js_refs(k) if r.lower() not in o_refs]

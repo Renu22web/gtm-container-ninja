@@ -385,6 +385,16 @@ def consent_cat(left, right):
     if 'functional' in l or 'c0003' in r: return 'FUNC'
     return 'MKT'
 
+def var_setting_of(vr):  # a setting that changes what the variable returns: default value / format value
+    p = params(vr); fv = vr.get('formatValue') or {}
+    if str(p.get('setDefaultValue', '')).lower() == 'true':
+        d = str(p.get('defaultValue', '') or '')
+        return 'Default ' + (d if d and len(d) <= 20 and '{{' not in d else 'Empty' if not d else 'Value')
+    cu = (fv.get('convertUndefinedToValue') or {}).get('value') if isinstance(fv.get('convertUndefinedToValue'), dict) else None
+    if cu is not None: return 'Undefined to ' + (str(cu) if cu and len(str(cu)) <= 20 else 'Empty')
+    if fv: return 'Formatted'
+    return ''
+
 # ---------------------------------------------------------------- tag naming
 TRACK_RX = [
     r"fbq\(\s*['\"](?:track|trackCustom)['\"]\s*,\s*['\"]([\w ]+)", r"ttq\.track\(\s*['\"](\w+)", r"snaptr\(\s*['\"]track['\"]\s*,\s*['\"](\w+)",
@@ -881,7 +891,8 @@ def main():
     code_key = lambda c: fnv(re.sub(r'\d+', '', re.sub(r'\s+', '', re.sub(r'\{\{[^{}]+\}\}', '{{}}', re.sub(r'/\*.*?\*/|//[^\n]*', '', str(c), flags=re.S)))).lower())  # variable names inside differ per brand
     def var_key(vr):
         t = vr.get('type', ''); p = params(vr)
-        if t in ('v', 'k', 'j'): return str(p.get('name', ''))
+        if t == 'v': return str(p.get('name', '')) + ('|' + var_setting_of(vr) if var_setting_of(vr) else '')  # default / format value change what it returns
+        if t in ('k', 'j'): return str(p.get('name', ''))
         if t == 'jsm':
             js = re.sub(r'\{\{[^{}]+\}\}', '{{}}', re.sub(r'\s+', '', re.sub(r'/\*.*?\*/|//[^\n]*', '', str(p.get('javascript', '')), flags=re.S)))
             return 'js:' + code_key(js) + ('' if len(js) >= 60 else '|n:' + new_var[vr['variableId']][0].lower())  # short code alone says too little
@@ -978,8 +989,9 @@ def main():
         c = js_code(k)
         local = set(re.findall(r'\b(?:var|let|const|function)\s+([A-Za-z_$][\w$]*)', c)) | set(re.findall(r'\bcatch\s*\(\s*([A-Za-z_$][\w$]*)', c))
         return [t for t in dict.fromkeys(re.findall(r'[A-Za-z_$][\w$]{3,}', c)) if t not in JS_WORDS and t not in local]
+    var_setting = lambda k: var_setting_of(var_by_id[k])
     def var_detail(k, group):  # what only this variable's code uses: a variable it reads, else a property it reads, else a name in its code
-        if var_by_id[k].get('type') != 'jsm': return ''
+        if var_by_id[k].get('type') != 'jsm': return var_setting(k)
         oth = [j for j in group if j != k and var_by_id[j].get('type') == 'jsm']
         o_refs = {r.lower() for j in oth for r in js_refs(j)}
         refs = [r for r in js_refs(k) if r.lower() not in o_refs]
