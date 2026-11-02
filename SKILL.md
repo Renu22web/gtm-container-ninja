@@ -39,7 +39,7 @@ The page exports the same files (Brand library, My vendors, Team rules, Fix list
    - **Find & replace**, **History** (undo/redo of every name change), **Name score** (share of names in the format, before/after, minus duplicates and missing consent), **Compare brands** (load other exports: vendors and tag actions per brand, what differs, CSV) and **Test after import** (journey test plan per step – home, category, product, add to cart, basket, checkout, purchase – as JSON/CSV for the GTM journey-tester skill).
 5. **Review before handing over.** Open `<name>_summary.xlsx` (sheets: Summary, Rename Map, Duplicates – delete, No consent condition, Deleted – not used (with `--cleanup`), Import check) and check:
    - **Import check sheet:** every run also makes the file safe to import. *Fixed* rows are problems GTM would refuse that the script repaired (today: hidden fields in old Gallery templates such as Snap Pixel, which cause "Hidden parameters are not allowed"; a template that had to be edited also loses its Gallery link, because GTM rejects a changed Gallery template with "This field is invalid (or unsupported)" on `galleryReference` – it imports as a custom template). *Check* rows need a person: a tag pointing to a trigger that is missing, a `{{variable}}` that does not exist in the container, or two items with the same name. If a *Fixed* row says the template code reads the removed field, update that template from the Gallery before publishing. A template with no code (GTM error "template_data: Missing section ___INFO___") cannot be repaired from the file – export the container again from GTM so the template code is included.
-   - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep. When one copy is **paused**, the **active** item keeps the clean name and the paused copy is numbered (note "paused copy, delete it"); a trigger used only by paused tags counts as paused. Copies with the same code and the same firing conditions are only numbered – the trigger's name is never added to a tag name to tell them apart, and trigger words an earlier run added to tag names are removed on a re-run.
+   - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep. **Paused tags are never deleted or flagged:** when a paused item has the same set-up as a live one, the **live** item keeps the clean name and the paused one gets the same formatted name with ` - Paused` (`Criteo - cHTML - addToCart - Paused`; for a trigger before the consent ending: `Criteo - CE - Add to cart - Paused - MKT`), note "PAUSED copy of live …", Action "Rename"; a trigger used only by paused tags counts as paused. Live copies with the same code and the same firing conditions are only numbered – the trigger's name is never added to a tag name to tell them apart, and trigger words an earlier run added to tag names are removed on a re-run.
    - **amber rows – no consent condition:** triggers whose old name implied a consent gate ("OT Marketing …", "OT Performance …", "OT - …") but whose conditions test no consent variable. They are renamed to the standard format like every other trigger – no "OT", no "Marketing", no consent ending – and the Action says to add the consent condition later (roadmap Phase 4).
    - **grey rows – deleted, not used** (only with `--cleanup`): triggers and variables removed because nothing in use depends on them. Check the list before importing.
    - **blue rows – named from the old name only** (no config signal): make sure the name still says what the item does.
@@ -940,14 +940,21 @@ def main():
                 if e and vals.count(e.lower()) == 1 and e.lower() not in items[k][0].lower():
                     items[k][0] = combine(k, e) if combine else f'{items[k][0]} - {e}'
         final = collections.Counter(); first = {}
+        used = {v[0].lower() for v in items.values()}
         order = sorted(items, key=lambda k: rk(k))  # stable: active items first, then paused copies
         for k in order:
             v = items[k]
             base = v[0]; final[base.lower()] += 1
             if final[base.lower()] == 1: first[base.lower()] = base
+            elif rk(k):  # paused copy of a live item: kept, renamed to the format with ' - Paused'
+                pn = combine(k, 'Paused') if combine else f'{base} - Paused'
+                n2, i = pn, 1
+                while n2.lower() in used: i += 1; n2 = f'{pn} ({i})'
+                v[0] = n2; used.add(n2.lower())
+                v.append(f'PAUSED copy of live "{first[base.lower()]}" – renamed to the format and kept')
             else:
                 v[0] = f'{base} ({final[base.lower()]})'
-                v.append(f'DUPLICATE of "{first[base.lower()]}" – ' + ('paused copy, delete it' if rk(k) else 're-point anything using it, then delete'))
+                v.append(f'DUPLICATE of "{first[base.lower()]}" – re-point anything using it, then delete')
         return items
     if a.overrides:
         ov = {(r['Item'].strip().lower(), r['Old name'].strip()): r['New name'].strip() for r in csv.DictReader(open(a.overrides, encoding='utf-8')) if r.get('New name')}

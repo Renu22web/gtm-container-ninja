@@ -1026,12 +1026,20 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
         }
       }
       const final = new Map(), first = new Map();
+      const used = new Set([...items.values()].map(v => v[0].toLowerCase()));
       const order = [...items.keys()].sort((a, b) => rk(a) - rk(b));  // stable: active items first, then paused copies
       for (const k of order) {
         const v = items.get(k);
         const base = v[0], key = base.toLowerCase(); final.set(key, (final.get(key) || 0) + 1);
         if (final.get(key) === 1) first.set(key, base);
-        else { v[0] = `${base} (${final.get(key)})`; v.push(`DUPLICATE of "${first.get(key)}" – ` + (rk(k) ? 'paused copy, delete it' : 're-point anything using it, then delete')); }
+        else if (rk(k)) {  // paused copy of a live item: kept, renamed to the format with ' - Paused'
+          const pn = combine ? combine(k, 'Paused') : `${base} - Paused`;
+          let n2 = pn, i = 1;
+          while (used.has(n2.toLowerCase())) { i++; n2 = `${pn} (${i})`; }
+          v[0] = n2; used.add(n2.toLowerCase());
+          v.push(`PAUSED copy of live "${first.get(key)}" – renamed to the format and kept`);
+        }
+        else { v[0] = `${base} (${final.get(key)})`; v.push(`DUPLICATE of "${first.get(key)}" – re-point anything using it, then delete`); }
       }
     }
     const ov = opts.overrides || {};

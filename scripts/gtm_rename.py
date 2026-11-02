@@ -712,14 +712,21 @@ def main():
                 if e and vals.count(e.lower()) == 1 and e.lower() not in items[k][0].lower():
                     items[k][0] = combine(k, e) if combine else f'{items[k][0]} - {e}'
         final = collections.Counter(); first = {}
+        used = {v[0].lower() for v in items.values()}
         order = sorted(items, key=lambda k: rk(k))  # stable: active items first, then paused copies
         for k in order:
             v = items[k]
             base = v[0]; final[base.lower()] += 1
             if final[base.lower()] == 1: first[base.lower()] = base
+            elif rk(k):  # paused copy of a live item: kept, renamed to the format with ' - Paused'
+                pn = combine(k, 'Paused') if combine else f'{base} - Paused'
+                n2, i = pn, 1
+                while n2.lower() in used: i += 1; n2 = f'{pn} ({i})'
+                v[0] = n2; used.add(n2.lower())
+                v.append(f'PAUSED copy of live "{first[base.lower()]}" – renamed to the format and kept')
             else:
                 v[0] = f'{base} ({final[base.lower()]})'
-                v.append(f'DUPLICATE of "{first[base.lower()]}" – ' + ('paused copy, delete it' if rk(k) else 're-point anything using it, then delete'))
+                v.append(f'DUPLICATE of "{first[base.lower()]}" – re-point anything using it, then delete')
         return items
     if a.overrides:
         ov = {(r['Item'].strip().lower(), r['Old name'].strip()): r['New name'].strip() for r in csv.DictReader(open(a.overrides, encoding='utf-8')) if r.get('New name')}
