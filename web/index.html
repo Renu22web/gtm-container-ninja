@@ -1,0 +1,1881 @@
+<title>GTM Container Ninja</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single working column — load bar, numbers strip, filterable rename ledger, download dock; reference tabs underneath. */
+:root{
+  --bg:#f5f6f4; --panel:#ffffff; --ink:#1b2321; --muted:#5d6b67; --line:#dde3e0; --soft:#eef2f0;
+  --accent:#16695a; --accent-ink:#ffffff; --accent-soft:#e1efeb;
+  --dup:#fbe1dc; --dup-ink:#9b2c1e; --amber:#fdf0cc; --amber-ink:#7a5300; --blue:#e3ecf8; --blue-ink:#234f86;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif; --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121816; --panel:#19211f; --ink:#e6ece9; --muted:#9aa8a3; --line:#2a3532; --soft:#1f2926;
+  --accent:#4cc3a8; --accent-ink:#0c1513; --accent-soft:#1c3a33;
+  --dup:#43221d; --dup-ink:#ffb4a6; --amber:#3d3218; --amber-ink:#f3d27a; --blue:#1d2c42; --blue-ink:#a9c6f2; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#121816; --panel:#19211f; --ink:#e6ece9; --muted:#9aa8a3; --line:#2a3532; --soft:#1f2926;
+  --accent:#4cc3a8; --accent-ink:#0c1513; --accent-soft:#1c3a33;
+  --dup:#43221d; --dup-ink:#ffb4a6; --amber:#3d3218; --amber-ink:#f3d27a; --blue:#1d2c42; --blue-ink:#a9c6f2; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 56px;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:30px;font-weight:700}
+h2{font-size:18px;font-weight:600}
+.lede{color:var(--muted);max-width:68ch;margin:6px 0 0}
+.mono{font-family:var(--f-mono)}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:flex-end}
+.privacy{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.privacy b{color:var(--ink);font-weight:600}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.load{display:grid;grid-template-columns:1fr auto;gap:16px;padding:16px;align-items:center}
+.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:18px;display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop p{margin:0;color:var(--muted);font-size:14px}
+.drop strong{color:var(--ink)}
+.opts{display:flex;flex-direction:column;gap:8px;font-size:14px}
+label.check{display:flex;gap:8px;align-items:center;cursor:pointer}
+.fix{padding:14px;display:flex;flex-direction:column;gap:12px}
+.fix h2,.vend h2{font-size:16px;margin:0}
+.fix .sub,.vend .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+.fixhead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.adder{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.adder input{min-width:min(420px,100%);flex:1}
+.fixzone{border:1.5px dashed var(--line);border-radius:var(--r);min-height:64px;transition:border-color .15s,background .15s}
+.fixzone.over{border-color:var(--accent);background:var(--accent-soft)}
+.fixzone .empty{padding:18px;color:var(--muted);font-size:14px;text-align:center}
+.fixzone table td input{width:100%;min-width:180px}
+.fixzone .done{color:var(--accent);font-weight:600;font-size:12px}
+input[type=text],input[type=search]{font:14px/1.3 var(--f-body);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.addbtn{padding:4px 8px;font-size:13px}
+tr[draggable=true]{cursor:grab}
+.vend{margin-top:6px;border-top:1px solid var(--line);padding-top:12px}
+.vend summary{cursor:pointer;font-weight:600}
+.vrow{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.vrow input{flex:1;min-width:140px}
+.vrow input.vn{flex:0 1 200px}
+.small{font-size:13px;color:var(--muted)}
+#selBar[hidden]{display:none}
+.sync{display:inline-block;width:fit-content;font-size:12px;padding:3px 8px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.sync.on{background:var(--accent-soft);color:var(--accent)}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:8px 0}
+.rgrid label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.tool{padding:14px;display:flex;flex-direction:column;gap:10px}
+.tool h2{font-size:16px;margin:0}
+.tool .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tool .row input[type=text]{flex:1;min-width:120px}
+.hist{max-height:160px;overflow:auto;font-size:13px;margin:0;padding-left:18px;color:var(--muted)}
+.hist li.cur{color:var(--ink);font-weight:600}
+.score{display:flex;align-items:baseline;gap:8px}
+.score .big{font-size:28px;font-weight:700}
+.bar{height:8px;border-radius:999px;background:var(--soft);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.detail{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;justify-content:flex-end;z-index:50}
+.detail[hidden]{display:none}
+.detail .sheet{background:var(--panel);width:min(640px,100%);height:100%;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:14px;border-left:1px solid var(--line)}
+.detail h3{margin:0;font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.detail ul{margin:0;padding-left:18px}
+.detail .mono{font-size:13px}
+.linkish{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font:inherit;text-align:left}
+td.name.old{cursor:pointer}
+.cmp td,.cmp th{text-align:left}
+.cmp td.num{text-align:right;font-variant-numeric:tabular-nums}
+.cmp td.miss{color:var(--muted)}
+button,.btn{font:600 14px/1 var(--f-body);border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:10px 14px;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.primary:hover{filter:brightness(1.07)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.banner{display:flex;gap:10px;align-items:center;font-size:14px;padding:10px 14px;border-radius:var(--r);background:var(--soft);color:var(--muted)}
+.banner b{color:var(--ink)}
+.banner.err{background:var(--dup);color:var(--dup-ink)}
+.meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{padding:12px 14px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;gap:2px;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.stat .n{font:600 24px/1.1 var(--f-display);font-variant-numeric:tabular-nums}
+.stat .l{font-size:12.5px;color:var(--muted)}
+.stat.dup{background:var(--dup);border-color:transparent}.stat.dup .n,.stat.dup .l{color:var(--dup-ink)}
+.stat.consent{background:var(--amber);border-color:transparent}.stat.consent .n,.stat.consent .l{color:var(--amber-ink)}
+.stat.review{background:var(--blue);border-color:transparent}.stat.review .n,.stat.review .l{color:var(--blue-ink)}
+.stat[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:8px 12px;font-weight:500}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink);font-weight:600}
+input[type=search],select{font:14px var(--f-body);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+input[type=search]{flex:1;min-width:180px}
+.count{font-size:13px;color:var(--muted);margin-left:auto}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{font:600 11.5px/1.2 var(--f-body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel);position:sticky;top:0}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+td.name{font-family:var(--f-mono);font-size:13px;min-width:220px}
+td.old{color:var(--muted)}
+td .newin{width:auto;min-width:100%;max-width:520px;font:13px var(--f-mono);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:4px;padding:4px 6px;margin:-4px -6px}
+td .newin:hover{border-color:var(--line)}
+td .newin:focus{border-color:var(--accent);background:var(--panel)}
+td .newin.over{border-color:var(--accent);border-style:dashed}
+td.kind{white-space:nowrap}
+.pill{display:inline-block;font:600 11px/1 var(--f-body);letter-spacing:.04em;padding:4px 7px;border-radius:99px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.pill.tag{background:var(--accent-soft);color:var(--accent)}
+tr.dup td{background:var(--dup)} tr.dup td,tr.dup .newin{color:var(--dup-ink)}
+details.ic{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:12px 16px}
+details.ic summary{cursor:pointer;font-weight:600;list-style:none;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+details.ic summary::-webkit-details-marker{display:none}
+details.ic .pill{font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px}
+.pill.ok{background:var(--accent-soft);color:var(--accent)} .pill.warn{background:var(--amber);color:var(--amber-ink)}
+details.ic ul{margin:10px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px;overflow-wrap:anywhere}
+details.ic li b{font-weight:600} details.ic .why{color:var(--muted)}
+tr.consent td{background:var(--amber)} tr.consent td,tr.consent .newin{color:var(--amber-ink)}
+tr.unused td{background:var(--soft)} tr.unused td.name{text-decoration:line-through;text-decoration-color:var(--muted)}
+.stat.unused{background:var(--soft);border-color:transparent}
+tr.review td{background:var(--blue)} tr.review td,tr.review .newin{color:var(--blue-ink)}
+td.note{font-size:12.5px;color:var(--muted);max-width:340px}
+tr.dup td.note,tr.consent td.note,tr.review td.note{color:inherit}
+.unchanged{color:var(--muted);font-size:12px}
+.more{padding:12px;text-align:center}
+.dock{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 16px}
+.dock .hint{font-size:13px;color:var(--muted);flex-basis:100%}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);padding:0 12px;overflow-x:auto}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:12px 10px;font-weight:500;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.tabpanel{padding:16px}
+.tabpanel table td,.tabpanel table th{position:static}
+.tabpanel p{margin:0 0 12px;color:var(--muted);max-width:75ch}
+code{font-family:var(--f-mono);font-size:12.5px;background:var(--soft);padding:1px 5px;border-radius:4px}
+ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;max-width:80ch}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+@media (max-width:720px){ .load{grid-template-columns:1fr} h1{font-size:25px} .count{margin-left:0} }
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>GTM Container Ninja</h1>
+      <p class="lede">Load a GTM container export. Every tag, trigger and variable gets a name that says what it does, all references are updated, and you download a file to import and test.</p>
+    </div>
+    <div class="privacy">Runs in your browser. <b>The file is not uploaded.</b></div>
+  </header>
+
+  <section class="panel load" aria-label="Load a container">
+    <div class="drop" id="drop">
+      <button class="primary" id="pick">Choose export (.json)</button>
+      <input type="file" id="file" accept=".json,application/json" hidden>
+      <p><strong>or drop the file here.</strong> GTM → Admin → Export Container.</p>
+      <button id="sample">Load sample</button>
+    </div>
+    <div class="opts">
+      <label class="check"><input type="checkbox" id="folders"> Put each vendor in its own folder</label>
+      <span class="unchanged">Folders: one per vendor, plus 00 Consent &amp; CMP, 01 Shared - Multiple Vendors (used by 2+ vendors) and 02 No Vendor - Helpers (no vendor's tags use it)</span>
+      <label class="check"><input type="checkbox" id="cleanup"> Delete triggers and variables that nothing uses</label>
+      <span class="sync" id="syncBadge">Saved in this browser only</span>
+      <span class="unchanged">Kept if any tag (paused too), a trigger group that is itself used, or a used variable depends on it</span>
+      <details class="vend" id="rulesBox">
+        <summary>Team rules <span class="small" id="rulesNote"></span></summary>
+        <p class="sub">Change the naming rules without code. Empty boxes keep the standard.</p>
+        <div class="rgrid">
+          <label>Custom HTML tag type<input type="text" data-r="labels.html" placeholder="cHTML"></label>
+          <label>Image tag type<input type="text" data-r="labels.img" placeholder="Image Pixel"></label>
+          <label>Template tag type<input type="text" data-r="labels.template" placeholder="Template"></label>
+          <label>Consent folder<input type="text" data-r="folders.consent" placeholder="00 Consent &amp; CMP"></label>
+          <label>Shared folder<input type="text" data-r="folders.shared" placeholder="01 Shared - Multiple Vendors"></label>
+          <label>No-vendor folder<input type="text" data-r="folders.novendor" placeholder="02 No Vendor - Helpers"></label>
+        </div>
+        <label class="small" style="display:flex;flex-direction:column;gap:4px">Words never kept in a name (comma-separated – agency names, old labels)<input type="text" data-r="removeWords" placeholder="iCrossing"></label>
+        <div class="adder" style="margin-top:8px"><button id="rulesReset">Back to the standard</button><button id="rulesExport">Export rules (.json)</button><button id="rulesImport">Import rules (.json)</button><input type="file" id="rulesFile" accept=".json,application/json" hidden></div>
+        <p class="sub">Consent endings (MKT, ANL, FUNC) and the item codes (CE, PV, DLV…) stay fixed – the whole convention and the skill depend on them.</p>
+      </details>
+      <details class="vend" id="vendBox">
+        <summary>My vendors <span class="small" id="vendCount"></span></summary>
+        <p class="sub">Vendors the tool does not know yet. Give the name to use and words that identify it in tag names, template names or the tag code (a script domain works well). Their tags, triggers and folders then follow the same rules as built-in vendors.</p>
+        <div id="vendRows"></div>
+        <div class="adder"><button id="vendAdd">Add vendor</button><button id="vendExport">Export (.csv)</button><button id="vendImport">Import (.csv)</button><input type="file" id="vendFile" accept=".csv,text/csv" hidden></div>
+      </details>
+    </div>
+  </section>
+
+  <div class="banner" id="banner"></div>
+
+  <section id="results" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div class="meta" id="meta"></div>
+    <details class="ic" id="importcheck"></details>
+    <div class="stats" id="stats"></div>
+
+    <div class="panel fix" id="fixPanel">
+      <div class="fixhead">
+        <div><h2>Fix list <span class="small" id="fixCount"></span></h2><p class="sub">Collect the names you are not happy with: search below, press + on a row, or drag rows here. Type your name – it replaces the suggestion everywhere and all references follow.</p></div>
+        <div class="adder"><button id="fixExport">Export my names (.csv)</button><button id="fixImport">Import names (.csv)</button><input type="file" id="fixFile" accept=".csv,text/csv" hidden><button id="fixClear">Clear list</button></div>
+      </div>
+      <div class="adder"><input type="search" id="fixSearch" list="fixOpts" placeholder="Search any tag, trigger or variable to add…" aria-label="Search to add"><datalist id="fixOpts"></datalist><button class="primary" id="fixAddBtn">Add to list</button></div>
+      <div class="fixzone" id="fixZone"></div>
+      <p class="sub">The export is the brand's overrides file (<code>Item,Old name,New name</code>): import it next time here, or give it to the skill with <code>--overrides</code>, and the same names come back.</p>
+    </div>
+
+    <div class="tools">
+      <div class="panel tool" id="libBox">
+        <h2>Brand library</h2>
+        <p class="sub">The names every brand shares. An item set up the same way as in a brand already in the library (same type, same events, same conditions) gets that brand's name, so all brands end up with the same names. Save each brand after you are happy with its names.</p>
+        <label class="check small"><input type="checkbox" id="libUse" checked> Use the library for this container</label>
+        <div class="small" id="libNote"></div>
+        <div class="row"><button class="primary" id="libSave">Save this brand's names to the library</button></div>
+        <div class="row"><button id="libExport">Export library (.json)</button><button id="libImport">Import library (.json)</button><input type="file" id="libFile" accept=".json,application/json" hidden><button id="libClear">Clear library</button></div>
+      </div>
+      <div class="panel tool" id="scoreBox"><h2>Name score</h2><div id="scoreBody"></div></div>
+      <div class="panel tool">
+        <h2>Find &amp; replace</h2>
+        <p class="sub">Change words in many names at once. Preview first; every change can be undone.</p>
+        <div class="row"><input type="text" id="frFind" placeholder="Find, e.g. Checkout complete" aria-label="Find"><input type="text" id="frRepl" placeholder="Replace with, e.g. Purchase" aria-label="Replace with"></div>
+        <div class="row"><select id="frScope" aria-label="Where"><option value="all">Tags, triggers and variables</option><option value="Tag">Tags only</option><option value="Trigger">Triggers only</option><option value="Variable">Variables only</option></select><label class="check small"><input type="checkbox" id="frCase"> Match case</label></div>
+        <div class="row"><button id="frPreview">Preview</button><button class="primary" id="frApply" disabled>Apply</button><span class="small" id="frCount"></span></div>
+        <ul class="hist" id="frList"></ul>
+      </div>
+      <div class="panel tool">
+        <h2>History</h2>
+        <p class="sub">Every name you set, import or replace. Undo and redo step through it.</p>
+        <div class="row"><button id="undoBtn" disabled>Undo</button><button id="redoBtn" disabled>Redo</button><span class="small" id="histNote"></span></div>
+        <ol class="hist" id="histList"></ol>
+      </div>
+      <div class="panel tool">
+        <h2>Test after import</h2>
+        <p class="sub">A journey test plan: which tags should fire on home, category, product, add to cart, basket, checkout and purchase, read from their triggers. Send it to Claude with the GTM preview link and the GTM journey-tester skill checks every step in a real browser.</p>
+        <div class="row"><button id="planJson">Test plan (.json)</button><button id="planCsv">Test plan (.csv)</button></div>
+        <div class="small" id="planNote"></div>
+      </div>
+    </div>
+
+    <div class="panel tool" id="cmpBox">
+      <div class="fixhead"><div><h2>Compare brands</h2><p class="sub">Add exports of other brands. See which vendors each brand has, how many tags, and where the same vendor is set up differently. Uses the current rules and vendors.</p></div>
+        <div class="adder"><button id="cmpAdd">Add exports (.json)</button><input type="file" id="cmpFile" accept=".json,application/json" multiple hidden><button id="cmpCsv" disabled>Download comparison (.csv)</button><button id="cmpClear" disabled>Clear</button></div></div>
+      <div id="cmpBody" class="small">Only the container above so far.</div>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Item type" id="kindSeg">
+          <button data-k="all" aria-pressed="true">All</button><button data-k="Tag" aria-pressed="false">Tags</button><button data-k="Trigger" aria-pressed="false">Triggers</button><button data-k="Variable" aria-pressed="false">Variables</button>
+        </div>
+        <select id="show" aria-label="Show">
+          <option value="changed">Renamed items</option><option value="all">Everything</option><option value="dup">Duplicates – delete</option><option value="consent">No consent condition</option><option value="review">Named from old name</option><option value="unused">Deleted – not used</option><option value="over">My manual names</option><option value="library">Named from other brands</option>
+        </select>
+        <input type="search" id="q" placeholder="Search name, vendor, folder…" aria-label="Search">
+        <span class="count" id="count"></span>
+      </div>
+      <div class="toolbar" id="selBar" hidden>
+        <b id="selCount"></b>
+        <label class="check small"><input type="checkbox" id="selDeps" checked> Include the triggers, variables and templates they need</label>
+        <button class="primary" id="selJson">Export selected (.json)</button><button id="selCsv">Rename map for selected (.csv)</button><button id="selFix">Add to fix list</button><button id="selClear">Clear selection</button>
+        <span class="small" style="flex-basis:100%">Import a selected-items file with <b>Merge</b> → <b>Overwrite conflicting tags, triggers and variables</b>: the selected items are renamed (same IDs), everything else in the workspace stays as it is. Don't use Overwrite for a partial file – it would remove everything not in it.</span>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th><input type="checkbox" id="selAll" aria-label="Select all shown"></th><th></th><th>Item</th><th>Old name</th><th>New name <span style="text-transform:none;letter-spacing:0;font-weight:400">(click to edit)</span></th><th>Folder <span style="text-transform:none;letter-spacing:0;font-weight:400">(after import)</span></th><th>Vendor / type</th><th>Action</th><th>Note</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="more" id="moreWrap" hidden><button id="more">Show more</button></div>
+    </div>
+
+    <div class="panel dock">
+      <button class="primary" id="dlJson">Download renamed container (.json)</button>
+      <button id="dlXlsx">Download Excel summary (.xlsx)</button>
+      <button id="dlCsv">Rename map (.csv)</button>
+      <button id="reset" hidden>Clear my manual names</button>
+      <div class="legend" style="margin-left:auto">
+        <span><i class="sw" style="background:var(--dup)"></i>Duplicate – delete after re-pointing</span>
+        <span><i class="sw" style="background:var(--amber)"></i>No consent condition</span>
+        <span><i class="sw" style="background:var(--blue)"></i>Named from old name – check</span>
+        <span><i class="sw" style="background:var(--soft);border:1px solid var(--line)"></i>Deleted – not used</span>
+      </div>
+      <p class="hint" id="dlHint">Import the JSON into a <b>new</b> workspace with <b>Overwrite</b> (not Merge). Your live container is not touched. Problems GTM would refuse on import are fixed automatically – see Import check.</p>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Reference">
+    <div class="tabs" role="tablist" id="tabs">
+      <button role="tab" aria-selected="true" data-t="tags">Tag names</button>
+      <button role="tab" aria-selected="false" data-t="triggers">Trigger names</button>
+      <button role="tab" aria-selected="false" data-t="variables">Variable names</button>
+      <button role="tab" aria-selected="false" data-t="test">How to test</button>
+    </div>
+    <div class="tabpanel" data-p="tags">
+      <p>Format: <code>Vendor - Tag type - Action</code>. No consent ending on tags – MKT, ANL and FUNC go on triggers only. Custom HTML is always <code>cHTML</code>. The action is read from the tag itself first (GA4 event name, the pixel's track call, Criteo's event, the Listrak call, the Google Ads conversion ID). GA4 actions are written in words: <code>add_to_cart</code> → <code>Add to Cart</code>, never "Events", "errors", "ecom_event" or a name in brackets. Tags with no known vendor never get "Utility": the first part of the old name is the vendor. Agency names (iCrossing) are dropped.</p>
+      <div class="tablewrap"><table><thead><tr><th>Variation</th><th>Format</th><th>Example</th></tr></thead><tbody>
+        <tr><td>GA4 event</td><td class="mono">GA4 - Event - Event In Words</td><td class="mono">GA4 - Event - Add to Cart</td></tr>
+        <tr><td>GA4 configuration</td><td class="mono">GA4 - Google Tag - Configuration</td><td class="mono">GA4 - Google Tag - Configuration</td></tr>
+        <tr><td>Google Ads conversion</td><td class="mono">Google Ads - Template|cHTML - Conversion - ID</td><td class="mono">Google Ads - Template - Conversion - 1072666629</td></tr>
+        <tr><td>Google Ads remarketing</td><td class="mono">Google Ads - Remarketing - page · Google Ads - cHTML - Remarketing - what</td><td class="mono">Google Ads - Remarketing - View Item</td></tr>
+        <tr><td>Floodlight</td><td class="mono">Floodlight - Counter|Sales - activity</td><td class="mono">Floodlight - Counter - Blog</td></tr>
+        <tr><td>Pixel base (set-up tag)</td><td class="mono">Vendor - cHTML - Base</td><td class="mono">TikTok - cHTML - Base</td></tr>
+        <tr><td>Pixel event</td><td class="mono">Vendor - cHTML|Template - Event</td><td class="mono">Meta - cHTML - AddToCart</td></tr>
+        <tr><td>Criteo</td><td class="mono">Criteo - cHTML - Criteo event</td><td class="mono">Criteo - cHTML - viewBasket</td></tr>
+        <tr><td>Listrak</td><td class="mono">Listrak - cHTML - action</td><td class="mono">Listrak - cHTML - Product Browse</td></tr>
+        <tr><td>Image pixel</td><td class="mono">Vendor - Image Pixel - What</td><td class="mono">Awin - Image Pixel - Conversion</td></tr>
+        <tr><td>Consent</td><td class="mono">Consent - Template|cHTML - What</td><td class="mono">Consent - Template - Consent Mode - Default</td></tr>
+        <tr><td>No vendor found</td><td class="mono">first part of old name - cHTML - rest</td><td class="mono">Hearst - cHTML - Add To Cart</td></tr>
+        <tr><td>Duplicate set-up</td><td class="mono">numbered (2), red</td><td class="mono">Meta - cHTML - AddToCart (2) → delete</td></tr>
+      </tbody></table></div>
+      <p style="margin-top:12px">Tag types: cHTML, Image Pixel, Template, Event, Google Tag, Remarketing, Conversion Linker, Counter, Sales, UET, OneTag, Pixel. Brand-specific names that the code can't tell (for example Listrak Email vs SMS sign-up) can be set by clicking the new name and typing your own. Vendor spellings are fixed: Meta (not Facebook), TikTok, Awin, Contentsquare, Floodlight, CHEQ, Microsoft Ads, X (not Twitter), RTB House, Dynamic Yield, TTD, Xandr.</p>
+    </div>
+    <div class="tabpanel" data-p="triggers" hidden>
+      <p>Format: <code>Vendor - Trigger type - Action - Consent</code>. The vendor comes first when the trigger is used only by one vendor's tags. The action keeps the old name's own words ("OT Performance - Add to Wishlist" → <code>Contentsquare - CE - Add to Wishlist - ANL</code>); the event from the configuration is used only when the old name says nothing. A trigger shared by tags of several vendors is <code>Trigger type - Action - Consent</code>, with no vendor name anywhere (<code>CE - purchase - MKT</code>, <code>PV - All Pages</code>, not <code>PV - All Pages - for GA4</code>). The action is the event or page as written in the dataLayer. The consent ending (MKT, ANL, FUNC) always comes last, only when a condition really checks consent. No word is repeated: vendor words, the trigger type and repeated event names are dropped from the action. "OT", "OT Marketing" and "OT Performance" are never kept.</p>
+      <div class="tablewrap"><table><thead><tr><th>Code</th><th>Trigger type</th><th>Example</th></tr></thead><tbody>
+        <tr><td class="mono">CE</td><td>Custom Event</td><td class="mono">CE - ecom_event (add_to_cart) - MKT · Meta - CE - ecom_event (add_to_cart) - MKT</td></tr>
+        <tr><td class="mono">PV</td><td>Page View</td><td class="mono">PV - All Pages · Awin - PV - Checkout Complete - Site Only</td></tr>
+        <tr><td class="mono">DOM / WL</td><td>DOM Ready / Window Loaded</td><td class="mono">RTB House - WL - Category page - MKT</td></tr>
+        <tr><td class="mono">CLICK / LINK</td><td>All Elements / Just Links click</td><td class="mono">Listrak - CLICK - Contact Preferences case - MKT</td></tr>
+        <tr><td class="mono">VIS</td><td>Element Visibility</td><td class="mono">VIS - RingCentral_Icon_Viewed</td></tr>
+        <tr><td class="mono">FORM · HIST · TIMER · SCROLL · YT · JSERR</td><td>Other auto-event types</td><td class="mono">SCROLL - 50</td></tr>
+        <tr><td class="mono">TG</td><td>Trigger Group</td><td class="mono">TG - No marketing consent then consent</td></tr>
+        <tr><td>written in full</td><td>Initialization / Consent Initialization</td><td class="mono">Dynamic Yield - Initialization - All Pages · Consent Initialization - All Pages</td></tr>
+        <tr><td class="mono">Exclude</td><td>Used only to block tags</td><td class="mono">Exclude - PV - Blog · Exclude - CE - Listrak - Merchant ID no</td></tr>
+      </tbody></table></div>
+      <p style="margin-top:12px">Before → after: <code>CE - ecom_event (view_item) - MKT - ecom_event - view_item</code> → <code>CE - ecom_event (view_item) - MKT</code>; <code>WL - DY - All pages except PDP - Dynamic Yield</code> → <code>Dynamic Yield - WL - All pages except PDP</code>. A trigger whose old name said Marketing but has no consent condition gets the plain name and is shown amber.</p>
+    </div>
+    <div class="tabpanel" data-p="variables" hidden>
+      <p>Format: <code>CODE - What it holds</code>. Built-in variables are never renamed. Template and Custom JS consent variables are both kept and only renamed.</p>
+      <div class="tablewrap"><table><thead><tr><th>Code</th><th>Variable type</th><th>Named from</th><th>Example</th></tr></thead><tbody>
+        <tr><td class="mono">DLV</td><td>Data Layer Variable</td><td>dataLayer key</td><td class="mono">DLV - ecommerce.value</td></tr>
+        <tr><td class="mono">CJS</td><td>Custom JavaScript</td><td>purpose</td><td class="mono">Custom JS - Marketing Cookies Allowed → CJS - Marketing Cookies Allowed</td></tr>
+        <tr><td class="mono">TPL</td><td>Custom-template variable</td><td>purpose</td><td class="mono">Template - Marketing Cookies Allowed → TPL - Marketing Cookies Allowed</td></tr>
+        <tr><td class="mono">CONST</td><td>Constant</td><td>purpose</td><td class="mono">CONST - TikTok ID</td></tr>
+        <tr><td class="mono">COOKIE</td><td>1st-party cookie</td><td>cookie name</td><td class="mono">COOKIE - _dyid</td></tr>
+        <tr><td class="mono">URL</td><td>URL</td><td>component / query key</td><td class="mono">URL - Path · URL - Query - utm_source</td></tr>
+        <tr><td class="mono">LT / RT</td><td>Lookup / RegEx table</td><td>purpose</td><td class="mono">LT - Awin Account ID</td></tr>
+        <tr><td class="mono">AEV · JSV · DOM</td><td>Auto-event · JavaScript variable · DOM element</td><td>type / global / purpose</td><td class="mono">JSV - window.start.customer.email</td></tr>
+        <tr><td class="mono">ED</td><td>Event Data (server container)</td><td>key path</td><td class="mono">ED - consent_given</td></tr>
+        <tr><td class="mono">REF · CEV · UNDEF · UPD · GTES · GAS</td><td>Referrer, custom event, undefined, user-provided data, event settings, GA settings</td><td>purpose</td><td class="mono">GTES - GA4 Event Settings</td></tr>
+      </tbody></table></div>
+    </div>
+    <div class="tabpanel" data-p="test" hidden>
+      <ol class="steps">
+        <li>GTM → Admin → <b>Import Container</b> → choose the renamed .json.</li>
+        <li>To see renames as <b>Modified</b> (not Deleted + Added), rename an export of the <b>same workspace</b> you import into: create the workspace, export it, rename that file here, import it back into that workspace. GTM matches items by ID; an export from another workspace or an older version has different IDs.</li>
+        <li>Workspace: <b>New</b> (for example "Naming review – test"); option <b>Overwrite</b>. The new workspace becomes exactly this file; the live container is untouched. Don't use <b>Merge</b>: it adds the renamed items next to the old ones, so everything would exist twice.</li>
+        <li>Check the workspace's change list: only renames (and folder moves) appear, nothing added or deleted.</li>
+        <li>Preview the standard journey (home, list page, product page, add to cart, basket, checkout, purchase on staging). The same tags fire on the same events as in the live version.</li>
+        <li>Open a few Custom HTML tags: renamed <code>{{variables}}</code> resolve in Preview, no "undefined".</li>
+        <li>Delete the red duplicates and add consent conditions to the amber triggers in a later workspace; this file only changes names.</li>
+        <li>Publish after sign-off. The previous version stays in Versions for rollback.</li>
+      </ol>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="detail" id="detail" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dTitle"><div class="fixhead"><h2 id="dTitle" style="margin:0;font-size:18px"></h2><button id="dClose" aria-label="Close">Close</button></div><div id="dBody" style="display:flex;flex-direction:column;gap:14px"></div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+/* GTM naming engine – JS port of gtm_rename.py (same rules, same output) */
+(function (root) {
+  const VENDORS = [
+    ['Consent', 'consent mode|onetrust|optanon|didomi|\\bcmp\\b|cookie ?consent|cookiebot'],
+    ['GA4', '\\bga4\\b|google analytics 4|gtag\\(.?config.?,\\s*.?G-'],
+    ['Google Ads', 'google ads|adwords|\\baw-\\d|conversion linker|remarketing|youtube micro'],
+    ['Floodlight', 'floodlight|\\bdc-\\d|\\bsa360\\b|fls\\.doubleclick|ad\\.doubleclick'],
+    ['CHEQ', '\\bcheq\\b|clickcease'],
+    ['Awin', '\\bawin\\b|dwin1\\.com|awin1\\.com'],
+    ['Meta', 'facebook|\\bfbq\\(|connect\\.facebook|\\bmeta\\b|\\bfb\\b'],
+    ['TikTok', 'tik ?tok|\\bttq\\.|analytics\\.tiktok'],
+    ['Pinterest', 'pinterest|pintrk'],
+    ['Snapchat', 'snapchat|snaptr|sc-static\\.net|\\bsnap pixel'],
+    ['Criteo', 'criteo|sponsoredads'],
+    ['RTB House', 'rtb ?house|creativecdn'],
+    ['Microsoft Ads', 'microsoft (ads|advertising)|\\bbing\\b|\\buetq\\b|bat\\.bing|\\buet\\b'],
+    ['X', 'twitter|\\btwq\\(|ads-twitter|static\\.ads-twitter'],
+    ['Reddit', 'reddit|\\brdt\\('],
+    ['Listrak', 'listrak|_ltk\\b'],
+    ['Dynamic Yield', 'dynamic ?yield|\\bDY\\b|DY\\.API|dy - '],
+    ['Contentsquare', 'content ?square|_uxa'],
+    ['Hotjar', 'hotjar'],
+    ['Bazaarvoice', 'bazaar ?voice|\\bbv[A-Z]\\w+|\\bBV\\b'],
+    ['RingCentral', 'ring ?central'],
+    ['Partnerize', 'partnerize|prf\\.hn'],
+    ['Rakuten', 'rakuten|linksynergy'],
+    ['CJ', 'commission junction|emjcd|\\bcj\\b'],
+    ['TTD', 'trade ?desk|adsrvr|\\bttd\\b'],
+    ['Xandr', 'xandr|appnexus|adnxs|\\bmiq\\b'],
+    ['Line', '\\bline\\b|line-scdn'],
+    ['LinkedIn', 'linkedin|snap\\.licdn'],
+    ['Taboola', 'taboola'], ['Outbrain', 'outbrain'], ['Quantcast', 'quantcast'], ['Yahoo', 'yahoo'],
+    ['AppsFlyer', 'appsflyer'], ['Kelkoo', 'kelkoo'], ['A8', '\\ba8\\b'], ['Lunio', 'lunio'], ['UniDays', 'unidays'],
+    ['Rokt', 'rokt'], ['Attentive', 'attentive'], ['Provenance', 'provenance'], ['Flixmedia', 'flixmedia|flix'],
+    ['Qubit', 'qubit'], ['Yandex', 'yandex'], ['Baidu', 'baidu'], ['LiveRamp', 'liveramp'], ['AB Tasty', 'ab ?tasty'],
+    ['intent.ly', 'intent\\.?ly'], ['Kakao', 'kakao|arttrk'], ['Adobe', 'adobe'],
+  ].map(([v, rx]) => [v, new RegExp(rx, 'i')]);
+  const BASE_VENDORS = VENDORS.slice();
+  const ALIASES = {
+    'Meta': ['Facebook Pixel', 'Facebook', 'FB Pixel', 'FB', 'Meta Pixel', 'Meta'], 'TikTok': ['Tik Tok', 'TikTok', 'Tiktok'],
+    'Contentsquare': ['Content Square', 'ContentSquare', 'Contentsquare', 'CS'], 'Dynamic Yield': ['Dynamic Yield', 'DY'],
+    'Floodlight': ['Floodlight', 'FloodLight', 'SA360'], 'Awin': ['AWIN', 'AWin', 'Awin'], 'CHEQ': ['CHEQ', 'Cheq'],
+    'GA4': ['GA4 Event', 'GA4', 'Google Analytics 4', 'GA'], 'Google Ads': ['Google Ads', 'AdWords', 'Adwords', 'GAds'],
+    'Microsoft Ads': ['Microsoft Advertising', 'Microsoft Ads', 'Bing Ads', 'Bing', 'UET'], 'TTD': ['The Trade Desk', 'Trade Desk Pixel', 'Trade Desk', 'TTD'],
+    'Xandr': ['MiQ/Xandr', 'Xandr', 'AppNexus', 'MiQ'], 'X': ['Twitter', 'X'], 'Bazaarvoice': ['Bazaar Voice', 'Bazaarvoice', 'BV'],
+    'RTB House': ['RTB House', 'RTBHouse', 'RTB'], 'Line': ['LINE', 'Line'], 'RingCentral': ['Ring Central', 'RingCentral'],
+    'Snapchat': ['Snapchat', 'Snap'], 'Consent': ['Consent', 'OneTrust', 'Onetrust', 'OT'], 'CJ': ['Commission Junction', 'CJ'],
+  };
+  const BASE_ALIASES = JSON.parse(JSON.stringify(ALIASES));
+  const NORM = [[/\bTik ?Tok\b/g, 'TikTok'], [/\bTiktok\b/g, 'TikTok'], [/\bContent ?Square\b/g, 'Contentsquare'], [/\bAW[Ii][Nn]\b/g, 'Awin'],
+    [/\bFloodLight\b/g, 'Floodlight'], [/\bOnetrust\b/g, 'OneTrust'], [/\bFacebook\b/g, 'Meta'], [/\bBazaar Voice\b/g, 'Bazaarvoice'],
+    [/\bRing Central\b/g, 'RingCentral'], [/\bCheq\b/g, 'CHEQ']];
+  const GOOGLE = new Set(['GA4', 'Google Ads', 'Floodlight']);
+  const TAG_TYPES = { html: 'Custom HTML', img: 'Custom Image', gaawe: 'GA4 Event', googtag: 'Google Tag', gaawc: 'GA4 Config',
+    awct: 'Google Ads Conversion', sp: 'Google Ads Remarketing', gclidw: 'Conversion Linker', awud: 'Google Ads User Data',
+    flc: 'Floodlight Counter', fls: 'Floodlight Sales', baut: 'Microsoft UET', crto: 'Criteo OneTag', pntr: 'Pinterest',
+    twitter_website_tag: 'X Base', hjtc: 'Hotjar', bzi: 'LinkedIn Insight' };
+  const FIXED_VENDOR = { gaawe: 'GA4', googtag: 'GA4', gaawc: 'GA4', awct: 'Google Ads', sp: 'Google Ads', gclidw: 'Google Ads', awud: 'Google Ads',
+    flc: 'Floodlight', fls: 'Floodlight', baut: 'Microsoft Ads', crto: 'Criteo', twitter_website_tag: 'X', hjtc: 'Hotjar', bzi: 'LinkedIn' };
+  const TRIG_CODE = { PAGEVIEW: 'PV', DOM_READY: 'DOM', WINDOW_LOADED: 'WL', CUSTOM_EVENT: 'CE', CLICK: 'CLICK', LINK_CLICK: 'LINK',
+    ELEMENT_VISIBILITY: 'VIS', FORM_SUBMISSION: 'FORM', HISTORY_CHANGE: 'HIST', JS_ERROR: 'JSERR', TIMER: 'TIMER',
+    SCROLL_DEPTH: 'SCROLL', YOU_TUBE_VIDEO: 'YT', TRIGGER_GROUP: 'TG', INIT: 'INIT', CONSENT_INIT: 'CINIT', SERVER_PAGEVIEW: 'SPV', ALWAYS: 'ALL' };
+  const VAR_CODE = { v: 'DLV', jsm: 'CJS', c: 'CONST', k: 'COOKIE', u: 'URL', smm: 'LT', remm: 'RT', d: 'DOM', j: 'JSV', aev: 'AEV',
+    f: 'REF', e: 'CEV', r: 'RAND', vis: 'VIS', gas: 'GAS', gtes: 'GTES', gtcs: 'GTCS', uv: 'UNDEF', awec: 'UPD',
+    ed: 'ED', ctv: 'CTV', dbg: 'DBG', cid: 'CID', rh: 'RH', gtm: 'GTM' };
+  const TRIG_LABEL = { PAGEVIEW: 'Page View', DOM_READY: 'DOM Ready', WINDOW_LOADED: 'Window Loaded', CUSTOM_EVENT: 'Custom Event', CLICK: 'Click',
+    LINK_CLICK: 'Link Click', ELEMENT_VISIBILITY: 'Element Visibility', FORM_SUBMISSION: 'Form Submit', HISTORY_CHANGE: 'History Change', JS_ERROR: 'JS Error',
+    TIMER: 'Timer', SCROLL_DEPTH: 'Scroll Depth', YOU_TUBE_VIDEO: 'YouTube Video', TRIGGER_GROUP: 'Trigger Group', INIT: 'Initialization',
+    CONSENT_INIT: 'Consent Initialization', SERVER_PAGEVIEW: 'Server Page View', ALWAYS: 'All Events' };
+  const CONSENT_WORD = { MKT: 'MKT', ANL: 'ANL', FUNC: 'FUNC' };
+  const TAG_TYPE_SHORT = { html: 'cHTML', img: 'Image Pixel', gaawe: 'Event', googtag: 'Google Tag', gaawc: 'Config', awct: 'Conversion', sp: 'Remarketing',
+    gclidw: 'Conversion Linker', awud: 'User Data', flc: 'Counter', fls: 'Sales', baut: 'UET', crto: 'OneTag', pntr: 'Pixel', twitter_website_tag: 'Base Pixel',
+    hjtc: 'Tracking Code', bzi: 'Insight Tag' };
+  const VAR_LABEL = { v: 'DLV', jsm: 'CJS', c: 'Constant', k: 'Cookie', u: 'URL', smm: 'Lookup', remm: 'RegEx Lookup', d: 'DOM Element', j: 'JS Variable',
+    aev: 'Auto Event', f: 'Referrer', e: 'Custom Event', r: 'Random', vis: 'Visibility', gas: 'GA Settings', gtes: 'Event Settings', gtcs: 'Config Settings',
+    uv: 'Undefined', awec: 'User Data', ed: 'Event Data', ctv: 'Container Version', dbg: 'Debug Mode', cid: 'Container ID', rh: 'Request Header', gtm: 'GTM' };
+  const OP_WORD = { EQUALS: ['is', 'is not'], CONTAINS: ['contains', 'does not contain'], MATCH_REGEX: ['matches', 'does not match'],
+    STARTS_WITH: ['starts with', 'does not start with'], ENDS_WITH: ['ends with', 'does not end with'], CSS_SELECTOR: ['matches CSS', 'does not match CSS'],
+    GREATER: ['>', 'not >'], LESS: ['<', 'not <'], GREATER_OR_EQUALS: ['>=', 'not >='], LESS_OR_EQUALS: ['<=', 'not <='] };
+  const VAR_PREFIX = ['DLV', 'DL', 'dataLayer', 'Data Layer', 'CJS', 'cjs', 'Custom JS', 'Custom JavaScript', 'JS', 'Cookie', '1st Party Cookie', 'COOKIE',
+    'LT', 'Lookup', 'Lookup Table', 'GA4 LT', 'Regex', 'RegEx', 'RT', 'Template', 'TPL', 'const', 'Constant', 'CONST', 'AEV', 'URL',
+    'DOM', 'JSV', 'ED', 'Event Data'];
+  const OLD_PREFIX = ['CE', 'OT Marketing Consent', 'OT Marketing', 'OT Performance consent', 'OT Performance',
+    'OT CE', 'OT', 'Marketing OT', 'OneTrust Marketing Consent', 'Onetrust Marketing consent', 'OneTrust Performance Consent', 'Custom', 'custom', 'Pageview', 'Page View', 'PV', 'Trigger Group', 'TG',
+    'Trigger', 'Event', 'Window Loaded', 'Window Load', 'windows load', 'Load', 'DOM Ready', 'Click', 'Initialization',
+    'Consent Initialization', 'Timer', 'EXC', 'Exception', 'WL', 'Tag'];
+  const EVENT_LIKE = /event|name|action|page ?type|category|template/i;
+  const JUNK = new Set(['', 'undefined', 'true', 'false', 'null', '0', '1', '.*', 'none', 'no', 'yes']);
+  const CONSENT_VAR = /marketing cookies allowed|marketing allowed|consent mode|consent_given|ad_storage|optanon|actual cookie consent|tracking allowed|functional cookies allowed|cookies allowed|didomi/i;
+  const TRACK_RX = [
+    /fbq\(\s*['"](?:track|trackCustom)['"]\s*,\s*['"]([\w ]+)/g, /ttq\.track\(\s*['"](\w+)/g, /snaptr\(\s*['"]track['"]\s*,\s*['"](\w+)/g,
+    /pintrk\(\s*['"]track['"]\s*,\s*['"](\w+)/g, /rdt\(\s*['"]track['"]\s*,\s*['"](\w+)/g, /twq\(\s*['"](?:event|track)['"]\s*,\s*['"]([\w-]+)/g,
+    /uetq\.push\(\s*['"]event['"]\s*,\s*['"](\w+)/g, /criteo_q\.push\([^)]*?event\s*:\s*['"](\w+)/g, /DY\.API\(\s*['"]event['"]\s*,\s*\{\s*name\s*:\s*['"]([^'"]+)/g,
+    /_uxa\.push\(\s*\[\s*['"](\w+)/g, /_ltk\.(\w+\.\w+)/g, /window\._lt\(\s*['"]send['"]\s*,\s*['"](\w+)/g,
+  ];
+  const INIT_RX = /fbq\(\s*['"]init|ttq\.load|pintrk\(\s*['"]load|snaptr\(\s*['"]init|rdt\(\s*['"]init/;
+  const LISTRAK_ACTION = { 'Activity.AddProductBrowse': 'Product Browse', 'Alerts.AddAlertWithIdentifiers': 'Sign Up For Alert', 'SCA.Update': 'Email Capture' };
+  const TEMPLATE_EVENT_KEYS = ['eventName', 'event_name', 'eventType', 'event', 'standardEventName', 'eventId', 'tagType', 'type'];
+
+  const escRe = s => s.replace(/[.*+?^${}()|[\]\\\/-]/g, '\\$&');
+  for (const c of [...new Set(Object.values(VAR_CODE))].filter(x => !VAR_PREFIX.includes(x)).sort()) VAR_PREFIX.push(c);
+
+  // ---- re-runs: names already in the standard format
+  const byLenDesc = a => [...a].sort((x, y) => y.length - x.length);
+  let VENDOR_NAMES = byLenDesc(new Set([...VENDORS.map(v => v[0]), 'Utility', 'Consent', 'Snapchat']));
+  let TYPE_WORDS = byLenDesc(new Set([...Object.values(TAG_TYPE_SHORT), 'Template', 'Tag', 'HTML']));
+  let STD_TAG = new RegExp('^(' + VENDOR_NAMES.map(escRe).join('|') + ') - (' + TYPE_WORDS.map(escRe).join('|') + ')(?: - |$)');
+  const STD_TRIG = new RegExp('^(?:Exclude - )?(?:[^-]{2,40}? - )?(?:Consent Initialization|Initialization|' + byLenDesc(new Set(Object.values(TRIG_CODE))).join('|') + ') - ');  // [Vendor - ]Type - 
+  const NUM_SUFFIX = /\s*\(\d+\)$/;
+  let STD_ANY = /^([^-]{2,40}?) - (cHTML|Image Pixel)(?: - |$)/;   // '<any vendor> - cHTML - ...'
+  let STD_UTIL = /^(cHTML|Image Pixel) - /;                         // 'cHTML - <name>' (no vendor)
+  let AGENCIES = ['iCrossing'];                                     // words never kept in a name (team rules can add more)
+  const RULES = {};
+  const DEFAULT_RULES = { labels: { html: 'cHTML', img: 'Image Pixel', template: 'Template' }, removeWords: ['iCrossing'],
+    folders: { consent: '00 Consent & CMP', shared: '01 Shared - Multiple Vendors', novendor: '02 No Vendor - Helpers' } };
+  function setRules(r) {  // the team's own naming rules: tag type labels, words never kept in a name, folder names
+    r = r || {};
+    const lab = {}, fol = {};
+    for (const [k, v] of Object.entries(DEFAULT_RULES.labels)) lab[k] = S((r.labels || {})[k] || '').trim() || v;
+    for (const [k, v] of Object.entries(DEFAULT_RULES.folders)) fol[k] = S((r.folders || {})[k] || '').trim() || v;
+    const words = [...new Set([...DEFAULT_RULES.removeWords, ...(r.removeWords || [])].map(w => S(w).trim()).filter(Boolean))];
+    Object.assign(RULES, { labels: lab, folders: fol, removeWords: words });
+    TAG_TYPE_SHORT.html = lab.html; TAG_TYPE_SHORT.img = lab.img;
+    TYPE_WORDS = byLenDesc(new Set([...Object.values(TAG_TYPE_SHORT), lab.template, 'Template', 'Tag', 'HTML', 'cHTML', 'Image Pixel']));
+    const pix = byLenDesc(new Set(TYPE_WORDS.filter(w => w !== 'Tag'))).map(escRe).join('|');
+    STD_ANY = new RegExp('^([^-]{2,40}?) - (' + pix + ')(?: - |$)');
+    STD_UTIL = new RegExp('^(' + pix + ') - ');
+    AGENCIES = words;
+  }
+  function stripWords(text) {  // words the team never keeps in a name are removed with their separator
+    for (const w of RULES.removeWords || []) text = text.replace(new RegExp('\\s*-?\\s*(?<![A-Za-z0-9])' + escRe(w) + '(?![A-Za-z0-9])\\s*-?\\s*', 'gi'), ' - ');
+    return (RULES.removeWords || []).length ? stripCharsX(norm(text), ' -') : text;
+  }
+  const SMALL_WORDS = new Set(['a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'the', 'by', 'with', 'from', 'at']);
+  const EVENT_WRAPPERS = '\\b(?:ecom_event|elysiumEvent|custom_event|customEvent|PageLoad)\\b';
+  const isUpperWord = x => x.length > 1 && x === x.toUpperCase() && x !== x.toLowerCase();
+  function nice(s) {  // 'add_to_cart' -> 'Add to Cart'
+    const w = String(s).replace(/_/g, ' ').trim().split(/\s+/).filter(Boolean);
+    return w.map((x, i) => isUpperWord(x) ? x : (i && SMALL_WORDS.has(x.toLowerCase()) ? x.toLowerCase() : x.charAt(0).toUpperCase() + x.slice(1))).join(' ');
+  }
+  function cleanEventText(s) {  // 'errors - ecom_event (view_item) - ecom_event - view_item' -> 'View Item'
+    s = String(s).replace(/^\s*(?:errors|Events)\s*(?:-\s*|$)/, '').replace(new RegExp(EVENT_WRAPPERS, 'g'), '');
+    const segs = [];
+    for (let seg of s.split(/\s+-\s+/)) {
+      seg = stripCharsX(seg.replace(/[()]/g, ' '), ' -');
+      seg = seg ? nice(seg) : '';
+      if (seg && !segs.some(x => x.toLowerCase() === seg.toLowerCase())) segs.push(seg);
+    }
+    return segs.join(' - ');
+  }
+  const escReU = s => s.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+  const wordKey = x => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const GENERIC_OLD = new Set(['', 'trigger', 'event', 'events', 'customevent', 'allevents', 'pageview', 'pv', 'ce', 'wl', 'dom', 'click', 'new', 'test', 'initialisation', 'consentinitialisation']);
+  function tidyAction(core, vend, label, longLabel, others = []) {  // trigger action: no consent words, no vendor words (shared trigger: none), no type words, nothing said twice
+    const aliases = byLenDesc(new Set([...(vend ? [vend] : []), ...others].flatMap(v => [v, ...(ALIASES[v] || [])]).filter(Boolean)));
+    const skip = new Set([wordKey(label), wordKey(longLabel)]);
+    const segs = [], keys = [];
+    for (const seg of String(core).split(/\s+-\s*|\s*-\s+/)) {
+      let x = seg.trim();
+      if (/^(?:MKT|ANL|FUNC)$/i.test(x)) continue;
+      for (const al of aliases) x = x.replace(new RegExp('(?:\\b(?:for|by|via)\\s+)?(?<![\\p{L}\\p{N}_])' + escReU(al) + '(?![\\p{L}\\p{N}_])', 'giu'), '');  // 'for GA4' goes with GA4
+      x = stripCharsX(x.replace(/\(\s*\)/g, '').replace(/\s{2,}/g, ' '), ' -');
+      const k = wordKey(x);
+      if (!k || skip.has(k) || keys.some(q => q.includes(k))) continue;
+      keys.forEach((q, i) => { if (k.includes(q)) { segs[i] = null; keys[i] = ''; } });
+      segs.push(x); keys.push(k);
+    }
+    const out = segs.filter(Boolean).join(' - ');
+    return out || norm(core);
+  }
+  function findUnused(cv) {  // triggers and variables nothing in use depends on (all tags count as in use, paused ones too)
+    const tags = cv.tag || [], trigs = cv.trigger || [], vars = cv.variable || [];
+    const trigRefs = o => {
+      let out = [];
+      if (Array.isArray(o)) { for (const v of o) out = out.concat(trigRefs(v)); }
+      else if (o && typeof o === 'object') {
+        for (const [k, v] of Object.entries(o)) {
+          if (k.endsWith('TriggerId') || k === 'triggerIds') out = out.concat((Array.isArray(v) ? v : [v]).map(x => x && typeof x === 'object' ? S('value' in x ? x.value : x) : S(x)));
+          else out = out.concat(trigRefs(v));
+        }
+      }
+      return out;
+    };
+    const usedT = new Set([...trigRefs(tags), ...trigRefs(cv.zone || [])]);
+    const byId = new Map(trigs.map(t => [S(t.triggerId), t]));
+    const members = t => (t.parameter || []).filter(p => p.key === 'triggerIds').flatMap(p => (p.list || []).map(x => S(x.value)));
+    const todo = [...usedT];
+    while (todo.length) {
+      const t = byId.get(todo.pop());
+      if (t && t.type === 'TRIGGER_GROUP') for (const m of members(t)) if (!usedT.has(m)) { usedT.add(m); todo.push(m); }
+    }
+    const refs = o => new Set([...JSON.stringify(o).matchAll(/\{\{([^{}]+)\}\}/g)].map(m => m[1]));
+    const usedV = new Set([...refs(tags), ...refs(trigs.filter(t => usedT.has(S(t.triggerId))))]);
+    for (const k of ['client', 'transformation', 'zone']) for (const r of refs(cv[k] || [])) usedV.add(r);
+    const byName = new Map(vars.map(v => [v.name, v]));
+    const todo2 = [...usedV];
+    while (todo2.length) {
+      const v = byName.get(todo2.pop());
+      if (v) for (const r of refs(v)) if (!usedV.has(r)) { usedV.add(r); todo2.push(r); }
+    }
+    return [trigs.filter(t => !usedT.has(S(t.triggerId))), vars.filter(v => !usedV.has(v.name))];
+  }
+  function stdTagName(name) {  // older standard tag name brought up to date: HTML -> cHTML, no consent ending
+    const s = String(name).replace(/^([^-]{2,40}?) - (?:HTML|cHTML)(?= - |$)/, (m, a) => a + ' - ' + TAG_TYPE_SHORT.html);
+    return s.replace(/\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|\s*\(\d+\)$|$)/g, '').trim();
+  }
+  const CONSENT_TAIL = /(?:(?:^|\s*-\s*)(?:MKT|ANL|FUNC))+$/;
+  function stdCore(old, kind) {
+    let s = String(old).replace(NUM_SUFFIX, '').trim();
+    const rx = kind === 'tag' ? STD_TAG : kind === 'trigger' ? STD_TRIG : null;
+    if (rx) { const m = rx.exec(s); if (m) s = s.slice(m[0].length); else if (kind === 'tag') { const m2 = STD_ANY.exec(s) || STD_UTIL.exec(s); if (m2) s = s.slice(m2[0].length); } }
+    if (kind === 'variable') return s;
+    return s.replace(CONSENT_TAIL, '').replace(/\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-)/g, '').trim();
+  }
+  const consentSet = s => new Set(s.match(/\b(MKT|ANL|FUNC)\b/g) || []);
+  function keepExisting(old, neu) {
+    const o = String(old).replace(NUM_SUFFIX, '').trim(), ol = o.toLowerCase(), nl = neu.toLowerCase();
+    if (ol === nl) return neu;
+    if (JSON.stringify(ol.split(' - ').sort()) === JSON.stringify(nl.split(' - ').sort())) return o;
+    if (!ol.startsWith(nl + ' - ')) return neu;
+    const have = consentSet(neu);
+    return [...consentSet(o.slice(neu.length))].some(c => !have.has(c)) ? neu : o;
+  }
+
+  // ---- import safety
+  const GTM_BUILTINS = new Set(['Page URL', 'Page Hostname', 'Page Path', 'Referrer', 'Event', 'Click Element', 'Click Classes', 'Click ID', 'Click Target', 'Click URL',
+    'Click Text', 'Form Element', 'Form Classes', 'Form ID', 'Form Target', 'Form URL', 'Form Text', 'Error Message', 'Error URL', 'Error Line',
+    'Debug Mode', 'Random Number', 'Container ID', 'Container Version', 'Environment Name', 'HTML ID', 'New History Fragment', 'Old History Fragment',
+    'New History State', 'Old History State', 'History Source', 'Video Provider', 'Video URL', 'Video Title', 'Video Duration', 'Video Percent',
+    'Video Visible', 'Video Status', 'Video Current Time', 'Scroll Depth Threshold', 'Scroll Depth Units', 'Scroll Direction', 'Percent Visible',
+    'On-Screen Duration', 'Client Name', 'Event Name', 'Query String', 'Request Method', 'Request Path', 'Server Container ID', 'Server Container URL']);
+  const BUILTIN_TRIGGER_IDS = new Set(['2147479553', '2147479572', '2147479573']);
+  const safeName = s => String(s).replace(/[{}]/g, '').replace(/[\r\n]/g, ' ').replace(/\s{2,}/g, ' ').trim() || 'Unnamed';
+  function pyDumps(v, ind) {  // same text as Python json.dumps(indent=2, ensure_ascii=False)
+    ind = ind || '';
+    const n = ind + '  ';
+    if (Array.isArray(v)) return v.length ? '[\n' + v.map(x => n + pyDumps(x, n)).join(',\n') + '\n' + ind + ']' : '[]';
+    if (v && typeof v === 'object') { const k = Object.keys(v); return k.length ? '{\n' + k.map(x => n + JSON.stringify(x) + ': ' + pyDumps(v[x], n)).join(',\n') + '\n' + ind + '}' : '{}'; }
+    return JSON.stringify(v);
+  }
+  function importCheck(cv) {
+    const out = [], usedBy = new Map();
+    for (const x of [...(cv.tag || []), ...(cv.variable || [])]) {
+      const m = /^cvt_(?:\w+_)?(\d+)$/.exec(x.type || '');
+      if (m) { if (!usedBy.has(m[1])) usedBy.set(m[1], []); usedBy.get(m[1]).push(x); }
+    }
+    for (const ct of cv.customTemplate || []) {
+      const td = ct.templateData || '';
+      const m = /(___TEMPLATE_PARAMETERS___\n\n)([\s\S]*?)(?=\n\n___\w+___|$)/.exec(td);
+      if (!m) continue;
+      let plist;
+      try { plist = JSON.parse(m[2]); } catch (e) { out.push(['Check', 'Template', ct.name || '', 'Template fields could not be read', 'Update the template from the Gallery, then export again']); continue; }
+      const removed = [];
+      const strip = ps => ps.filter(q => { if (q.type === 'HIDDEN') { removed.push(q.name || ''); return false; } if (q.subParams) q.subParams = strip(q.subParams); return true; });
+      plist = strip(plist);
+      if (!removed.length) continue;
+      const start = m.index + m[1].length;
+      ct.templateData = td.slice(0, start) + pyDumps(plist) + td.slice(start + m[2].length);
+      const hadGallery = 'galleryReference' in ct; delete ct.galleryReference;  // its signature no longer matches the edited template
+      const js = td.includes('___SANDBOXED_JS_FOR_WEB_TEMPLATE___') ? td.split('___SANDBOXED_JS_FOR_WEB_TEMPLATE___').pop().split('\n\n___')[0] : '';
+      for (const x of usedBy.get(S(ct.templateId)) || []) x.parameter = (x.parameter || []).filter(q => !removed.includes(q.key));
+      for (const nm of removed) {
+        const used = new RegExp('data\\s*(\\.\\s*' + escRe(nm) + '\\b|\\[\\s*[\'"]' + escRe(nm) + '[\'"]\\s*\\])').test(js);
+        out.push(['Fixed', 'Template', ct.name || '', `Hidden field "${nm}" – GTM refuses hidden fields on import`,
+          'Removed the field' + (used ? ' – the template code reads it: update the template from the Gallery before publishing' : ' (the template code never uses it, so nothing changes)')
+          + (hadGallery ? '; the Gallery link was removed because GTM rejects a changed Gallery template – it imports as a custom template, re-link it later with "Update" from the Gallery if wanted' : '')]);
+      }
+    }
+    const trigIds = new Set((cv.trigger || []).map(t => S(t.triggerId)));
+    for (const tg of cv.tag || []) for (const k of ['firingTriggerId', 'blockingTriggerId']) for (const i of tg[k] || [])
+      if (!trigIds.has(S(i)) && !BUILTIN_TRIGGER_IDS.has(S(i))) out.push(['Check', 'Tag', tg.name, `Points to trigger ID ${i}, which is not in the container`, 'Re-select the trigger in GTM after import']);
+    const known = new Set([...(cv.variable || []).map(v => v.name), ...(cv.builtInVariable || []).map(b => b.name || ''), ...GTM_BUILTINS]);
+    const seen = new Set();
+    for (const [key, item] of [['tag', 'Tag'], ['trigger', 'Trigger'], ['variable', 'Variable']]) for (const x of cv[key] || []) {
+      for (const mm of JSON.stringify(x).matchAll(/\{\{([^{}]+)\}\}/g)) {
+        let ref; try { ref = JSON.parse('"' + mm[1] + '"'); } catch (e) { ref = mm[1]; }
+        const sk = item + '\u0000' + x.name + '\u0000' + ref;
+        if (!known.has(ref) && !ref.startsWith('_') && !seen.has(sk)) {
+          seen.add(sk);
+          out.push(['Check', item, x.name, `Uses {{${ref}}}, which is not a variable in the container (already missing before the rename)`, 'Create or enable the variable, or fix the reference']);
+        }
+      }
+    }
+    for (const [key, item] of [['tag', 'Tag'], ['trigger', 'Trigger'], ['variable', 'Variable']]) {
+      const c = new Map(); for (const x of cv[key] || []) { const n = x.name.toLowerCase(); c.set(n, (c.get(n) || 0) + 1); }
+      for (const [n, k] of c) if (k > 1) out.push(['Check', item, n, `${k} items share this name`, 'Rename one of them before import']);
+    }
+    return out;
+  }
+  const stripCharsX = (s, chars) => stripChars(String(s), chars);
+  const stripChars = (s, chars) => { let a = 0, b = s.length; while (a < b && chars.includes(s[a])) a++; while (b > a && chars.includes(s[b - 1])) b--; return s.slice(a, b); };
+  const title = s => s.toLowerCase().replace(/(^|[^a-z])([a-z])/g, (m, p, c) => p + c.toUpperCase());
+  const S = x => (x === undefined || x === null) ? '' : String(x);
+
+  function norm(s) {
+    s = S(s).replace(/\s*\|\s*(?![^()]*\))/g, ' - ').split(' > ').join(' - ');  // '|' inside (...) is kept
+    for (const [a, b] of NORM) s = s.replace(a, b);
+    s = s.replace(/\s*-\s*(-\s*)+/g, ' - ');
+    s = s.replace(/\s{2,}/g, ' ');
+    return stripChars(s, ' -:_');
+  }
+  function stripPrefix(name, prefixes) {
+    let s = S(name).trim(), changed = true;
+    const sorted = [...prefixes].sort((a, b) => b.length - a.length);
+    while (changed) {
+      changed = false;
+      for (const p of sorted) {
+        const m = s.match(new RegExp('^' + escRe(p) + '(\\s*[-|:>_]\\s*|\\s+)', 'i'));
+        if (m && s.length > m[0].length) { s = s.slice(m[0].length); changed = true; break; }
+      }
+    }
+    return s;
+  }
+  function* allStrings(o) {
+    if (Array.isArray(o)) { for (const v of o) yield* allStrings(v); }
+    else if (o && typeof o === 'object') { for (const v of Object.values(o)) yield* allStrings(v); }
+    else if (typeof o === 'string') yield o;
+  }
+  const joinStrings = o => [...allStrings(o)].join(' ');
+  function params(obj) {
+    const out = {};
+    for (const p of obj.parameter || []) {
+      if ('value' in p) out[p.key] = p.value; else if ('list' in p) out[p.key] = p.list; else if ('map' in p) out[p.key] = p.map;
+    }
+    return out;
+  }
+  function replaceRefs(o, map, counter) {
+    if (!map.size) return o;
+    if (Array.isArray(o)) return o.map(v => replaceRefs(v, map, counter));
+    if (o && typeof o === 'object') { const r = {}; for (const [k, v] of Object.entries(o)) r[k] = replaceRefs(v, map, counter); return r; }
+    if (typeof o === 'string' && o.includes('{{'))
+      return o.replace(/\{\{([^{}]+)\}\}/g, (m, old) => map.has(old) ? (counter.n++, '{{' + map.get(old) + '}}') : m);
+    return o;
+  }
+  function detectVendor(...texts) {
+    for (const t of texts) { if (!t) continue; for (const [v, rx] of VENDORS) if (rx.test(t)) return v; }
+    return null;
+  }
+  function short(s, n = 40) { s = S(s).replace(/\s+/g, ' ').trim(); return s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…'; }
+  function condParts(c) {
+    const p = {}; for (const x of c.parameter || []) p[x.key] = x.value;
+    return [c.type || '', S(p.arg0), S(p.arg1), S(p.negate || 'false').toLowerCase() === 'true'];
+  }
+  function consentCat(left, right) {
+    const l = left.toLowerCase(), r = S(right).toLowerCase();
+    if (!CONSENT_VAR.test(l)) return null;
+    if (l.includes('marketing') || l.includes('advertis') || l.includes('ad_storage') || r.includes('c0004') || l.includes('consent_given')) return 'MKT';
+    if (l.includes('analytic') || l.includes('performance') || r.includes('c0002')) return 'ANL';
+    if (l.includes('functional') || r.includes('c0003')) return 'FUNC';
+    return 'MKT';
+  }
+  function tagAction(tag, vendor, ttype, oldRest) {
+    const p = params(tag), t = tag.type || '';
+    if (t === 'gaawe') {
+      const ev = S(p.eventName);
+      if (ev && !ev.includes('{{')) {
+        if (['errors', 'error', 'exception'].includes(ev.toLowerCase())) {  // generic event: name it from its 'type' parameter
+          const rows = (Array.isArray(p.eventSettingsTable) ? p.eventSettingsTable : []).filter(r => r && typeof r === 'object').map(r => { const o = {}; for (const m of r.map || []) o[m.key] = m.value; return o; });
+          const hit = rows.find(r => r.parameter === 'type' && !S(r.parameterValue).includes('{{'));
+          const ty = hit ? S(hit.parameterValue) : '';
+          return [ty ? nice(ty) : (cleanEventText(oldRest) || nice(ev)), 'config'];
+        }
+        return [nice(ev), 'config'];
+      }
+      return [cleanEventText(oldRest) || 'Events', 'name'];
+    }
+    if (t === 'googtag' || t === 'gaawc') return ['Configuration', 'config'];
+    if (t === 'gclidw') return ['', 'config'];
+    if (t === 'sp') {
+      const a = oldRest && !/remarketing/i.test(oldRest) ? oldRest : '';
+      return [new RegExp('_|' + EVENT_WRAPPERS).test(a) ? cleanEventText(a) : a, 'config'];
+    }
+    if (t === 'awct') { const cid = S(p.conversionId); return ['Conversion' + (/^\d+$/.test(cid) ? ' - ' + cid : ''), 'config']; }
+    if (t === 'flc' || t === 'fls') {
+      let a = stripPrefix(oldRest, ['Counter', 'Sales', 'Sales Tag'].concat(AGENCIES));
+      for (const ag of AGENCIES) a = stripCharsX(a.replace(new RegExp('\\s*-?\\s*\\b' + escRe(ag) + '\\b\\s*-?\\s*', 'g'), ' - '), ' -');
+      return [norm(a) || S(p.activityTag), 'config'];
+    }
+    const code = joinStrings(tag.parameter || []);
+    if (vendor === 'Google Ads') {  // Custom HTML Google Ads tags: conversion vs remarketing, from the code
+      const cid = /google_conversion_id\s*=\s*['"]?(\d+)/.exec(code);
+      if (/google_remarketing_only\s*=\s*true/.test(code)) {
+        const rest = stripCharsX(oldRest.replace(/^(Google\s+)?(Remarketing\s*-?\s*)?/i, ''), ' -');
+        return ['Remarketing' + (rest ? ' - ' + rest : ''), 'code'];
+      }
+      if (cid) return ['Conversion - ' + cid[1], 'code'];
+    }
+    if (vendor === 'Criteo') {  // the event after the set* calls says what the tag does
+      const cev = [...code.matchAll(/event\s*:\s*['"](\w+)/g)].map(m => m[1]).filter(e => !e.startsWith('set') && e !== 'Product');
+      if (cev.length) {
+        const e = cev[0];
+        if (oldRest.toLowerCase() === e.toLowerCase()) return [oldRest, 'code'];
+        return [{ viewPage: 'All pages', trackTransaction: 'trackTransaction (Conversion)' }[e] || e, 'code'];
+      }
+    }
+    let evs = [];
+    for (const rx of TRACK_RX) { rx.lastIndex = 0; for (const m of code.matchAll(rx)) evs.push(m[1]); }
+    evs = [...new Set(evs)].filter(Boolean);
+    const isT = t.startsWith('cvt_');
+    if (vendor === 'Consent') return [oldRest || 'Consent', 'name'];
+    if (vendor === 'Awin') {
+      if ((isT && /consent/i.test(ttype)) || /consent/i.test(oldRest)) return ['Consent Signals', isT ? 'config' : 'name'];
+      if ((isT && /master|journey/i.test(ttype)) || /js file|\bbase\b|master/i.test(oldRest)) return ['MasterTag', isT ? 'config' : 'name'];
+      if (/sread|conversion|sale/i.test(code + oldRest)) return ['Conversion', 'code'];
+    }
+    if (isT) {
+      for (const k of TEMPLATE_EVENT_KEYS) {
+        const v = p[k];
+        if (typeof v === 'string' && v && !v.includes('{{') && v.length < 40)
+          return [norm(v) + (oldRest && !v.toLowerCase().includes(oldRest.toLowerCase()) ? ' - ' + oldRest : ''), 'config'];
+      }
+    }
+    if (vendor === 'Contentsquare' && oldRest && evs.length) return [oldRest, 'name'];  // _uxa commands say how, the old name says what
+    if (vendor === 'Listrak' && evs.length) {
+      const la = LISTRAK_ACTION[evs[0]];
+      if (la) return [la, 'code'];
+      if (oldRest) return [oldRest, 'name'];
+    }
+    if (evs.length) {
+      let ev = (evs.length === 1 || evs[0].toLowerCase() !== 'pageview') ? evs[0] : (evs.length > 1 ? evs[1] : evs[0]);
+      if (INIT_RX.test(code) && ['pageview', 'page'].includes(ev.toLowerCase())) ev = 'Base - PageView';
+      return [ev, 'code'];
+    }
+    if (INIT_RX.test(code)) return ['Base', 'code'];
+    let rest = oldRest || '';
+    if (t === 'img') rest = norm(rest.replace(/\s*[-|]?\s*\b(image pixel|image|pixel)\b/gi, ''));
+    return [rest, 'name'];
+  }
+
+  const wordRx = w => '(?<![A-Za-z0-9])' + escReU(w.trim()) + '(?![A-Za-z0-9])';
+  function setVendors(custom) {  // the user's own vendors: [{name, match: 'word, word'}] - checked before the built-in list
+    VENDORS.length = 0;
+    for (const k of Object.keys(ALIASES)) delete ALIASES[k];
+    Object.assign(ALIASES, JSON.parse(JSON.stringify(BASE_ALIASES)));
+    for (const c of custom || []) {
+      const name = S(c.name).trim(); if (!name) continue;
+      const words = [name, ...S(c.match).split(',')].map(w => w.trim()).filter(Boolean);
+      VENDORS.push([name, new RegExp(words.map(wordRx).join('|'), 'i')]);
+      ALIASES[name] = [...new Set([...(ALIASES[name] || []), ...words])];
+    }
+    VENDORS.push(...BASE_VENDORS);
+    VENDOR_NAMES = byLenDesc(new Set([...VENDORS.map(v => v[0]), 'Utility', 'Consent', 'Snapchat']));
+    STD_TAG = new RegExp('^(' + VENDOR_NAMES.map(escRe).join('|') + ') - (' + TYPE_WORDS.map(escRe).join('|') + ')(?: - |$)');
+  }
+  function run(input, opts = {}) {
+    setRules(opts.rules);
+    setVendors(opts.vendors);
+    const data = JSON.parse(JSON.stringify(input));
+    const cv = data.containerVersion || data;
+    let removed = [];  // [kind, id, name, type] deleted by the clean-up option
+    if (opts.cleanup) {
+      const [unT, unV] = findUnused(cv);
+      const dT = new Set(unT), dV = new Set(unV);
+      removed = [...unT.map(x => ['Trigger', x.triggerId, x.name, x.type || '']), ...unV.map(x => ['Variable', x.variableId, x.name, x.type || ''])];
+      cv.trigger = (cv.trigger || []).filter(x => !dT.has(x));
+      cv.variable = (cv.variable || []).filter(x => !dV.has(x));
+    }
+    let tags = cv.tag || [], trigs = cv.trigger || [], vars = cv.variable || [];
+    const tmpl = {}; for (const ct of cv.customTemplate || []) tmpl[S(ct.templateId)] = ct.name || '';
+    const tmplName = t => { const m = /^cvt_(?:\w+_)?(\d+)$/.exec(t || ''); return m ? (tmpl[m[1]] || '') : ''; };
+
+    const tagVendor = new Map(), tagTypeName = new Map();
+    for (const tg of tags) {
+      const t = tg.type || '', tn = tmplName(t);
+      tagTypeName.set(tg.tagId, TAG_TYPES[t] || (tn ? 'Template: ' + tn : t));
+      const code = joinStrings(tg.parameter || []).slice(0, 20000);
+      const mstd = STD_TAG.exec(tg.name);
+      const many = mstd ? null : STD_ANY.exec(tg.name);
+      tagVendor.set(tg.tagId, FIXED_VENDOR[t] || (mstd ? mstd[1] : null) || detectVendor(tg.name, tn, code) || (many && !STD_UTIL.test(tg.name) ? many[1] : null) || 'Utility');
+    }
+    const fireBy = new Map(), blockBy = new Map();
+    const push = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+    for (const tg of tags) {
+      for (const i of tg.firingTriggerId || []) push(fireBy, S(i), tg.tagId);
+      for (const i of tg.blockingTriggerId || []) push(blockBy, S(i), tg.tagId);
+    }
+    const inGroup = new Set();
+    for (const tr of trigs) {
+      if (tr.type !== 'TRIGGER_GROUP') continue;
+      for (const p of tr.parameter || []) {
+        if (p.key !== 'triggerIds') continue;
+        for (const x of p.list || []) inGroup.add(S(x.value));
+        for (const x of p.list || []) { const tid = S(x.value); const add = fireBy.get(S(tr.triggerId)) || []; if (!fireBy.has(tid)) fireBy.set(tid, []); fireBy.get(tid).push(...add); }
+      }
+    }
+    const nonEmpty = (m, k) => (m.get(k) || []).length > 0;
+
+    const newVar = new Map();
+    for (const vr of vars) {
+      const t = vr.type || '', p = params(vr), old = stdCore(vr.name, 'variable');
+      const code = t.startsWith('cvt_') ? 'TPL' : (VAR_CODE[t] || 'VAR');
+      let rest = norm(stripPrefix(old.replace(/^Lookup\s*\(([^)]*)\)\s*-\s*/, '$1 - '), VAR_PREFIX)), basis = 'name';
+      if (t === 'v' && p.name) { rest = S(p.name); basis = 'config'; }
+      else if (t === 'k' && p.name) { rest = S(p.name); basis = 'config'; }
+      else if (t === 'u') { const comp = title(S(p.component || 'URL')).split('_').join(' '); const q = p.queryKey; rest = q ? 'Query - ' + q : comp; basis = 'config'; }
+      else if (t === 'aev' && p.varType) { rest = title(S(p.varType)).split('_').join(' '); basis = 'config'; }
+      else if (t === 'j' && p.name) { rest = S(p.name); basis = 'config'; }
+      else if (t === 'ed' && p.keyPath) { rest = S(p.keyPath); basis = 'config'; }
+      if (t === 'jsm' && /marketing cookies allowed/i.test(old)) rest = 'Marketing Cookies Allowed';
+      newVar.set(vr.variableId, [`${code} - ${rest}`, basis, norm(stripPrefix(old, VAR_PREFIX))]);
+    }
+    const varLabel = l => norm(stripPrefix(S(l).replace(/[{}]/g, ''), VAR_PREFIX));
+    const condWords = (op, l, r, neg) => `${varLabel(l)} ${(OP_WORD[op] || [op.toLowerCase(), 'not ' + op.toLowerCase()])[neg ? 1 : 0]} ${short(r, 30)}`;
+    const cleanOld = old => {
+      let c = norm(stripPrefix(old, OLD_PREFIX));
+      c = stripChars(c.replace(/\s*[-|]?\s*\b(OT |OneTrust )?(Marketing|Performance)( consent)?\b/gi, ''), ' -') || c;
+      c = stripChars(c.replace(/\s*[-|]?\s*\bOT\b\s*[-|]?\s*/g, ' '), ' -') || c;
+      c = stripChars(c.replace(/\s*[-|]?\s*\btrigger\b/gi, ''), ' -') || c;
+      return norm(c);
+    };
+    const newTag = new Map();
+    for (const tg of tags) {
+      const v = tagVendor.get(tg.tagId), old = stdCore(tg.name, 'tag'), t = tg.type || '';
+      let oldRest = v !== 'Consent' ? norm(stripPrefix(old, (ALIASES[v] || [v]).concat(['Tag']))) : norm(old);
+      if (oldRest.toLowerCase() === v.toLowerCase()) oldRest = '';
+      let [act, basis] = tagAction(tg, v, tagTypeName.get(tg.tagId), oldRest);
+      act = norm(act);
+      if (['flc', 'fls'].includes(t) && !old && STD_TAG.test(tg.name)) act = '';
+      act = stripWords(stripCharsX(act.replace(/\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)/g, ''), ' -'));  // consent endings live on triggers only
+      const typ = t.startsWith('cvt_') || t === 'awct' ? RULES.labels.template : (TAG_TYPE_SHORT[t] || 'Tag');
+      let name;
+      if (v === 'Utility') {  // no vendor found: the old name's first part is the vendor
+        const i = act.indexOf(' - '), first = i < 0 ? act : act.slice(0, i), more = i < 0 ? '' : act.slice(i + 3);
+        name = act ? (more ? `${first} - ${typ} - ${more}` : `${act} - ${typ}`) : typ;
+      } else {
+        const parts = [];
+        for (const x of [v, typ, act]) if (x && !parts.some(p => p.toLowerCase() === x.toLowerCase())) parts.push(x);
+        name = parts.join(' - ');
+      }
+      newTag.set(tg.tagId, [name, basis, oldRest]);
+    }
+    const owner = new Map();  // the vendor a tag belongs to: a vendor not in the list is the first part of its new name ('Hearst - cHTML - ...')
+    for (const tg of tags) { const v = tagVendor.get(tg.tagId), n0 = newTag.get(tg.tagId)[0], n = (opts.overrides || {})['tag|' + tg.name] || (opts.overrides || {})['tag|' + n0] || n0; const m = v === 'Utility' && !STD_UTIL.test(n) && !STD_UTIL.test(tg.name) ? STD_ANY.exec(n) : null; owner.set(tg.tagId, m ? m[1] : v); }
+    const ownerLabel = k => owner.get(k) === 'Utility' ? 'No vendor' : owner.get(k);
+    const newTrig = new Map(), trigCats = new Map(), trigParts = new Map();
+    for (const tr of trigs) {
+      const tid = S(tr.triggerId), t = tr.type || '', old = stdCore(tr.name, 'trigger');
+      const exc = !nonEmpty(fireBy, tid) && nonEmpty(blockBy, tid) && !inGroup.has(tid);
+      const label = (t === 'INIT' || t === 'CONSENT_INIT') ? TRIG_LABEL[t] : (TRIG_CODE[t] || t.slice(0, 5) || 'TRG');
+      const conds = [].concat(tr.customEventFilter || [], tr.filter || [], tr.autoEventFilter || []);
+      const cats = new Set(); let ev = '', detail = '', basis = 'name';
+      for (const c of tr.customEventFilter || []) {
+        const [op, l, r] = condParts(c);
+        if (l.includes('_event') && r) { ev = (r === '.*' || r === '.+') ? 'All Events' : short(r, 32); basis = 'config'; }
+      }
+      for (const c of conds) {
+        const [op, l, r, neg] = condParts(c);
+        const cc = consentCat(l, r);
+        if (cc && !neg) cats.add(cc);
+        else if (cc && neg && ['EQUALS', 'CONTAINS'].includes(op) && r.toLowerCase() === 'true') { /* pass */ }
+        else if (!detail && !neg && ['EQUALS', 'CONTAINS', 'MATCH_REGEX', 'STARTS_WITH', 'ENDS_WITH'].includes(op) && !l.includes('_event')
+          && !JUNK.has(r.trim().toLowerCase()) && r.length <= 32 && (EVENT_LIKE.test(l) || /page|path|url/i.test(l))) {
+          detail = stripChars(r, '/').split('|').join('/'); basis = 'config';
+        }
+      }
+      const oc = cleanOld(old);
+      const goodOld = (o, lab, ty) => {
+        const k = wordKey(o);
+        if (String(o).startsWith('(') || GENERIC_OLD.has(k) || k === wordKey(lab) || k === wordKey(TRIG_LABEL[ty] || '')) return false;
+        return !/^(?:copy of\s+)?(?:untitled|new)\s*trigger/i.test(String(o));
+      };
+      const hasPlain = conds.some(c => { const cp = condParts(c); return !consentCat(cp[1], cp[2]) && !(cp[1].includes('_event') && ['.*', '.+'].includes(cp[2])); });
+      let core;
+      if (exc) {
+        const what = conds.filter(c => { const cp = condParts(c); return !(cp[1].includes('_event') && ['.*', '.+'].includes(cp[2])); })
+          .slice(0, 2).map(c => { const cp = condParts(c); const v = stripChars(cp[2].trim(), '/^$').split('|').join(' / ');
+            const good = v && !JUNK.has(v.toLowerCase()) && v.length <= 30 && !/[\\[\]()*+?]/.test(v);
+            return good ? v.charAt(0).toUpperCase() + v.slice(1) : (varLabel(cp[1]) + (v && v.length <= 30 ? ' ' + v : '')); });
+        core = what.length ? what.join(' - ') : oc;
+        basis = what.length ? 'config' : basis;
+      } else if (t === 'TRIGGER_GROUP') core = norm(stripPrefix(old, OLD_PREFIX));
+      else if (goodOld(oc, label, t)) core = oc;  // the old name says what the trigger is for: keep its words, only fit them into the format
+      else if (t === 'CUSTOM_EVENT') {
+        core = (ev || oc) + (detail ? ` (${detail})` : '');
+        if (detail && !ev && oc.toLowerCase().includes(detail.toLowerCase())) core = oc;
+      } else if (['PAGEVIEW', 'DOM_READY', 'WINDOW_LOADED', 'INIT', 'CONSENT_INIT'].includes(t)) {
+        if (!hasPlain) core = 'All Pages';
+        else if (detail && oc.toLowerCase().includes(detail.toLowerCase())) core = oc;
+        else core = detail || oc;
+      } else core = detail && !oc.toLowerCase().includes(detail.toLowerCase()) ? detail : oc;
+      const users = new Set([...(fireBy.get(tid) || []), ...(blockBy.get(tid) || [])].map(x => owner.get(x)));
+      let vend = users.size === 1 ? [...users][0] : '';
+      const condText = joinStrings(conds);
+      // a trigger used only by one vendor's tags belongs to that vendor (Vendor - Type - Action)
+      let vpart = !exc && vend && !GOOGLE.has(vend) && vend !== 'Utility' && vend !== 'Consent' ? vend : '';
+      const longLabel = TRIG_LABEL[t] || '';
+      const others = users.size > 1 && !exc ? [...users].filter(v => v !== 'Utility' && v !== 'Consent').sort() : [];  // shared by several vendors: Type - Action
+      core = stripWords(core) || core;
+      if (t !== 'TRIGGER_GROUP') {
+        const act = tidyAction(core, vpart, label, longLabel, others);
+        if (vpart && act === norm(core) && !stripCharsX(tidyAction(core, '', label, longLabel).split(vpart).join(''), ' -')) vpart = '';
+        core = act !== norm(core) || !vpart ? act : core;
+        core = tidyAction(core, vpart, label, longLabel, others);
+      }
+      const suf = exc ? '' : [...cats].sort().map(c => ' - ' + CONSENT_WORD[c]).join('');
+      trigCats.set(tid, cats);
+      let note = '';
+      if (/marketing|performance|\bOT\b/i.test(old) && !cats.size && t !== 'TRIGGER_GROUP' && !exc)
+        note = 'NO CONSENT: old name implied a consent gate but no consent condition was found – renamed without a consent ending';
+      if (inGroup.has(tid) && !nonEmpty(fireBy, tid)) note = (note ? note + '; ' : '') + 'Member of a trigger group';
+      const nm = exc ? `Exclude - ${label} - ${norm(core)}` : (vpart ? vpart + ' - ' : '') + `${label} - ${norm(core)}${suf}`;  // Vendor - Type - Action - Consent
+      newTrig.set(tid, [nm, basis, oc, note]);
+      trigParts.set(tid, [vpart, label, core, suf, exc, longLabel, others]);
+    }
+
+    const rerun = tags.length > 0 && tags.filter(x => STD_TAG.test(x.name)).length >= 0.6 * tags.length;  // file was already renamed once
+    function dedupe(items, extraFn, orig, combine) {
+      const groups = new Map();
+      for (const [k, v] of items) { const key = v[0].toLowerCase(); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(k); }
+      for (const [key, ks0] of groups) {
+        let ks = ks0;
+        if (ks.length === 1) continue;
+        if (orig && rerun) {  // re-run: names that were already made unique by an earlier run are kept
+          const o = new Map(ks.map(k => [k, orig.get(k).replace(NUM_SUFFIX, '').trim()]));
+          const ol = [...o.values()].map(x => x.toLowerCase());
+          const others = new Set([...items].filter(([j]) => !ks.includes(j)).map(([, v]) => v[0].toLowerCase()));
+          for (const k of [...ks]) {
+            const x = o.get(k).toLowerCase();
+            if (x.split(' - ')[0] === key.split(' - ')[0] && x !== key && ol.filter(y => y === x).length === 1 && !others.has(x) && items.get(k)[1] !== 'override') {
+              items.get(k)[0] = o.get(k); ks = ks.filter(j => j !== k);
+            }
+          }
+          if (ks.length < 2) continue;
+        }
+        const extras = new Map(ks.map(k => [k, extraFn(k) || '']));
+        const vals = [...extras.values()].map(e => e.toLowerCase());
+        for (const k of ks) {
+          const e = extras.get(k), it = items.get(k);
+          if (e && vals.filter(x => x === e.toLowerCase()).length === 1 && !it[0].toLowerCase().includes(e.toLowerCase())) it[0] = combine ? combine(k, e) : `${it[0]} - ${e}`;
+        }
+      }
+      const final = new Map(), first = new Map();
+      for (const v of items.values()) {
+        const base = v[0], key = base.toLowerCase(); final.set(key, (final.get(key) || 0) + 1);
+        if (final.get(key) === 1) first.set(key, base);
+        else { v[0] = `${base} (${final.get(key)})`; v.push(`DUPLICATE of "${first.get(key)}" – re-point anything using it, then delete`); }
+      }
+    }
+    const ov = opts.overrides || {};
+    for (const [kind, items, src, idk] of [['tag', newTag, tags, 'tagId'], ['trigger', newTrig, trigs, 'triggerId'], ['variable', newVar, vars, 'variableId']]) {
+      for (const x of src) {
+        const it = items.get(kind === 'trigger' ? S(x[idk]) : x[idk]);
+        const o = ov[kind + '|' + x.name] || ov[kind + '|' + it[0]];  // matches the current name or the standard name
+        if (o) { it[0] = o; it[1] = 'override'; }
+      }
+    }
+    const trigCombine = (k, e) => {  // extra words go inside the action, the consent stays last
+      const [vp, lab, core, suf, exc, long, oth] = trigParts.get(k);
+      if (exc || lab === 'TG') return `${newTrig.get(k)[0]} - ${e}`;
+      return (vp ? vp + ' - ' : '') + `${lab} - ` + norm(tidyAction(`${core} - ${e}`, vp, lab, long, oth)) + suf;
+    };
+    const keepTrigger = (k, old, neu) => {  // an earlier run's extra detail is kept, but put back in the right place
+      const o = String(old).replace(NUM_SUFFIX, '').trim();
+      if (o.toLowerCase() === neu.toLowerCase() || !o.toLowerCase().startsWith(neu.toLowerCase() + ' - ')) return neu;
+      const extra = o.slice(neu.length + 3);
+      const have = consentSet(neu);
+      if ([...consentSet(extra)].some(c => !have.has(c))) return neu;
+      return trigCombine(k, extra);
+    };
+    for (const [items, src, idk] of [[newTag, tags, 'tagId'], [newTrig, trigs, 'triggerId'], [newVar, vars, 'variableId']]) for (const x of src) {
+      const v = items.get(idk === 'triggerId' ? S(x[idk]) : x[idk]);
+      if (v[1] === 'override') continue;
+      const tp = idk === 'triggerId' ? trigParts.get(S(x[idk])) : null;
+      if (tp && !tp[4] && tp[1] !== 'TG') v[0] = keepTrigger(S(x[idk]), x.name, v[0]);
+      else v[0] = keepExisting(idk === 'tagId' ? stdTagName(x.name) : x.name, v[0]);
+    }
+    // ---- brand library: the same set-up gets the same name in every brand
+    const FP_PARAMS = new Set(['elementSelector', 'elementId', 'selectorType', 'eventName', 'interval', 'limit', 'verticalThresholdsPercent', 'horizontalThresholdsPercent', 'triggerStartOption']);
+    const fnv = text => { let h = 0x811c9dc5; for (const ch of S(text)) h = Math.imul(h ^ ch.codePointAt(0), 0x01000193) >>> 0; return h.toString(16).padStart(8, '0'); };  // same as the skill
+    const codeKey = c => fnv(S(c).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').replace(/\{\{[^{}]+\}\}/g, '{{}}').replace(/\s+/g, '').replace(/\d+/g, '').toLowerCase());  // variable names inside differ per brand
+    const varKey = vr => {
+      const t = vr.type || '', p = params(vr);
+      if (['v', 'k', 'j'].includes(t)) return S(p.name ?? '');
+      if (t === 'jsm') {
+        const js = S(p.javascript ?? '').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').replace(/\s+/g, '').replace(/\{\{[^{}]+\}\}/g, '{{}}');
+        return 'js:' + codeKey(js) + (js.length >= 60 ? '' : '|n:' + newVar.get(vr.variableId)[0].toLowerCase());  // short code alone says too little
+      }
+      if (t === 'd') return `${p.selectorType ?? ''}|${p.elementId ?? ''}${p.elementSelector ?? ''}|${p.attributeName ?? ''}`;
+      if (['smm', 'remm'].includes(t)) return 'in:' + S(p.input ?? '');
+      if (t === 'u') return `${p.component ?? 'URL'}|${p.queryKey ?? ''}`;
+      if (t === 'aev') return S(p.varType ?? '');
+      if (t === 'ed') return S(p.keyPath ?? '');
+      return 'p:' + codeKey(Object.keys(p).sort().filter(k => typeof p[k] === 'string').map(k => `${k}=${p[k]}`).join(';'));  // templates, constants, other types: their settings
+    };
+    const varFp = new Map(vars.map(vr => [vr.name, `V|${tmplName(vr.type || '') || vr.type || ''}|${varKey(vr)}`]));
+    for (const vr of vars) if (['smm', 'remm'].includes(vr.type)) {  // a lookup table is known by the variable it reads
+      const i = S(params(vr).input ?? '');
+      varFp.set(vr.name, varFp.get(vr.name).split('|in:')[0] + '|in:' + i.replace(/\{\{([^{}]+)\}\}/g, (m, n) => '{{' + (varFp.get(n) ?? 'B:' + n) + '}}'));
+    }
+    const refFp = v => S(v).replace(/\{\{([^{}]+)\}\}/g, (m, n) => '{{' + (varFp.get(n) ?? 'B:' + n) + '}}');
+    const trigBy = new Map(trigs.map(t => [S(t.triggerId), t])), tfpMemo = new Map();
+    const trigFp = (tid, depth = 0) => {
+      tid = S(tid);
+      if (tfpMemo.has(tid)) return tfpMemo.get(tid);
+      const t = trigBy.get(tid);
+      if (!t || depth > 8) return 'B|' + tid;
+      let f;
+      if (t.type === 'TRIGGER_GROUP') {
+        const ms = (t.parameter || []).filter(p => p.key === 'triggerIds').flatMap(p => p.list || []).map(x => S(x.value));
+        f = 'T|TRIGGER_GROUP|' + ms.map(m => trigFp(m, depth + 1)).sort().join(',');
+      } else {
+        const conds = [];
+        for (const lst of ['customEventFilter', 'filter', 'autoEventFilter']) for (const c of t[lst] || []) { const [op, l, r, neg] = condParts(c); conds.push(`${lst}:${op}|${refFp(l)}|${refFp(r)}|${neg ? 1 : 0}`); }
+        const ps = (t.parameter || []).filter(p => FP_PARAMS.has(p.key) && 'value' in p).map(p => `${p.key}=${refFp(p.value ?? '')}`);
+        f = `T|${t.type || ''}|` + conds.sort().join(';') + '|' + ps.sort().join(';');
+      }
+      tfpMemo.set(tid, f); return f;
+    };
+    const tagFp = tg => {
+      const t = tg.type || '', p = params(tg); let sig;
+      if (t === 'gaawe') sig = S(p.eventName ?? '');
+      else if (['flc', 'fls'].includes(t)) sig = `${p.groupTag ?? ''}|${p.activityTag ?? ''}`;
+      else if (t.startsWith('cvt_')) sig = TEMPLATE_EVENT_KEYS.filter(k => typeof p[k] === 'string' && !p[k].includes('{{')).map(k => p[k]).join('|');
+      else { const code = joinStrings(tg.parameter || []); const ev = []; for (const rx of TRACK_RX) for (const m of code.matchAll(rx)) if (m[1]) ev.push(m[1]); sig = [...new Set(ev)].join(',') || (['html', 'img', 'pntr'].includes(t) ? 'code:' + codeKey(code) : ''); }
+      return `G|${VENDOR_NAMES.includes(tagVendor.get(tg.tagId)) ? tagVendor.get(tg.tagId) : 'Utility'}|${tmplName(t) || t}|${sig}|` + (tg.firingTriggerId || []).map(i => trigFp(i)).sort().join(',');
+    };
+    const fps = { tag: new Map(tags.map(tg => [tg.tagId, tagFp(tg)])), trigger: new Map(trigs.map(t => [S(t.triggerId), trigFp(t.triggerId)])), variable: new Map(vars.map(vr => [vr.variableId, varFp.get(vr.name)])) };
+    const LIB = opts.library || {};
+    const brandId = (cv.container || {}).publicId || opts.fileBase || '';
+    for (const [kind, items] of [['tag', newTag], ['trigger', newTrig], ['variable', newVar]]) {
+      const nFp = new Map(); for (const f of fps[kind].values()) nFp.set(f, (nFp.get(f) || 0) + 1);
+      for (const [k, it] of items) {
+        const f = fps[kind].get(k), e = (LIB[kind] || {})[f];
+        if (it[1] === 'override' || !e || nFp.get(f) > 1 || !e.name || e.name === it[0] || e.id === brandId) continue;  // a brand's own names come from its own run
+        if (kind === 'variable' && CONSENT_VAR.test(it[0]) !== CONSENT_VAR.test(e.name)) continue;  // a consent variable keeps a consent name
+        it[0] = e.name; it[1] = 'library';
+        const msg = `LIBRARY: same set-up as in ${e.brand || 'another brand'} – name reused`;
+        if (kind === 'trigger') it[3] = (it[3] ? it[3] + '; ' : '') + msg; else it.push(msg);
+      }
+    }
+    dedupe(newTrig, k => newTrig.get(k)[2], new Map(trigs.map(x => [S(x.triggerId), x.name])), trigCombine);
+    dedupe(newTag, k => {
+      const tg = tags.find(x => x.tagId === k); const f = (tg.firingTriggerId || [null])[0];
+      if (f && newTrig.has(S(f))) return newTrig.get(S(f))[0].replace(/^[^-]+ - /, '').replace(/\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)/g, '');
+      return newTag.get(k)[2];
+    }, new Map(tags.map(x => [x.tagId, stdTagName(x.name)])));
+    dedupe(newVar, k => newVar.get(k)[2], new Map(vars.map(x => [x.variableId, x.name])));
+    const builtin = new Set((cv.builtInVariable || []).map(b => (b.name || '').toLowerCase()));
+    for (const items of [newTag, newTrig, newVar]) for (const v of items.values()) v[0] = safeName(v[0]);
+    for (const v of newVar.values()) if (builtin.has(v[0].toLowerCase())) v[0] += ' - Custom';
+    const brand = (cv.container || {}).name || opts.fileBase || '';
+    const library = JSON.parse(JSON.stringify(LIB));
+    for (const [kind, items] of [['tag', newTag], ['trigger', newTrig], ['variable', newVar]]) {
+      const nFp = new Map(); for (const f of fps[kind].values()) nFp.set(f, (nFp.get(f) || 0) + 1);
+      const lk = library[kind] = library[kind] || {};
+      for (const [k, it] of items) {
+        const f = fps[kind].get(k);
+        if (nFp.get(f) > 1 || it.slice(2).some(x => S(x).includes('DUPLICATE'))) continue;
+        if (!(f in lk) || it[1] === 'override' || lk[f].id === brandId) lk[f] = { name: it[0], brand, id: brandId };
+      }
+    }
+
+    const varMap = new Map(), tagMap = new Map();
+    for (const vr of vars) { const nn = newVar.get(vr.variableId)[0]; if (nn !== vr.name) varMap.set(vr.name, nn); }
+    for (const tg of tags) { const nn = newTag.get(tg.tagId)[0]; if (nn !== tg.name) tagMap.set(tg.name, nn); }
+    const counter = { n: 0 };
+    for (const key of ['tag', 'trigger', 'variable', 'client', 'transformation', 'zone']) if (key in cv) cv[key] = replaceRefs(cv[key], varMap, counter);
+    tags = cv.tag || []; trigs = cv.trigger || []; vars = cv.variable || [];
+    let seq = 0;
+    for (const tg of tags) for (const k of ['setupTag', 'teardownTag']) for (const s of tg[k] || []) if (tagMap.has(s.tagName)) { s.tagName = tagMap.get(s.tagName); seq++; }
+
+    const rows = [];
+    const notes = arr => arr.filter(Boolean).join('; ');
+    for (const tg of tags) { const [n, basis, , ...rest] = newTag.get(tg.tagId); rows.push({ item: 'Tag', id: tg.tagId, old: tg.name, neu: n, vendor: ownerLabel(tg.tagId), type: tagTypeName.get(tg.tagId), basis, note: notes(rest) }); tg.name = n; }
+    for (const tr of trigs) { const [n, basis, , note, ...more] = newTrig.get(S(tr.triggerId)); rows.push({ item: 'Trigger', id: tr.triggerId, old: tr.name, neu: n, vendor: '', type: tr.type || '', basis, note: notes([note, ...more]) }); tr.name = n; }
+    for (const vr of vars) { const [n, basis, , ...rest] = newVar.get(vr.variableId); rows.push({ item: 'Variable', id: vr.variableId, old: vr.name, neu: n, vendor: '', type: vr.type || '', basis, note: notes(rest) }); vr.name = n; }
+
+    for (const [kind, rid, nm, typ] of removed) rows.push({ item: kind, id: rid, old: nm, neu: '(deleted)', vendor: '', type: typ, basis: 'cleanup', note: 'UNUSED: no tag, trigger group or used variable depends on it – deleted' });
+
+    const madeFolders = [];
+    {  // folder per item: always worked out (shown in the Folder column); only applied to the file with the folders option
+      const SHARED = RULES.folders.shared, NOVENDOR = RULES.folders.novendor, CONSENTF = RULES.folders.consent;
+      const fname = v => v === 'Consent' ? CONSENTF : (v === 'Utility' ? NOVENDOR : v);
+      const fvend = owner, want = new Map();
+      for (const tg of tags) want.set('Tag|' + tg.tagId, fname(fvend.get(tg.tagId)));
+      const pick = (us, consent = false) => us.size === 1 ? fname([...us][0]) : consent ? fname('Consent') : us.size > 1 ? SHARED : NOVENDOR;
+      const varUsers = new Map();  // vendors whose tags use the variable - directly, through a trigger, or through another variable
+      const vu = n => { if (!varUsers.has(n)) varUsers.set(n, new Set()); return varUsers.get(n); };
+      const refsIn = o => new Set([...JSON.stringify(o).matchAll(/\{\{([^{}]+)\}\}/g)].map(m => m[1]));
+      for (const tr of trigs) {
+        const us = new Set([...(fireBy.get(S(tr.triggerId)) || []), ...(blockBy.get(S(tr.triggerId)) || [])].map(x => fvend.get(x))); want.set('Trigger|' + tr.triggerId, pick(us));
+        for (const m of refsIn(tr)) for (const u of us) vu(m).add(u);
+      }
+      for (const tg of tags) for (const m of refsIn(tg)) vu(m).add(fvend.get(tg.tagId));
+      const varRefs = vars.map(vr => [vr.name, refsIn(vr)]);
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const [n, rs] of varRefs) for (const m of rs) for (const u of vu(n)) if (!vu(m).has(u)) { vu(m).add(u); changed = true; }
+      }
+      for (const vr of vars) want.set('Variable|' + vr.variableId, pick(varUsers.get(vr.name) || new Set(), CONSENT_VAR.test(vr.name)));
+      const items = [['Tag', tags, 'tagId'], ['Trigger', trigs, 'triggerId'], ['Variable', vars, 'variableId']];
+      if (opts.folders) {
+        cv.folder = cv.folder || []; const folders = cv.folder;
+        const byName = new Map(folders.map(f => [f.name, f.folderId]));
+        let nxt = Math.max(0, ...folders.map(f => +f.folderId || 0), ...tags.map(x => +x.tagId || 0), ...trigs.map(x => +x.triggerId || 0), ...vars.map(x => +x.variableId || 0)) + 1;
+        const ensure = n => { if (!byName.has(n)) { folders.push({ accountId: cv.accountId || '', containerId: cv.containerId || '', folderId: String(nxt), name: n }); byName.set(n, String(nxt)); madeFolders.push(n); nxt++; } return byName.get(n); };
+        for (const [k, src, idk] of items) for (const x of src) x.parentFolderId = ensure(want.get(k + '|' + x[idk]));
+        const usedF = new Set([...tags, ...trigs, ...vars].map(x => x.parentFolderId));  // the old catch-all folder from an earlier run goes once it is empty
+        cv.folder = folders.filter(f => !(f.name === '01 Utilities & Data Layer' && !usedF.has(f.folderId)));
+      }
+      const fnameById = new Map((cv.folder || []).map(f => [S(f.folderId), f.name]));
+      const folderOf = new Map();
+      for (const [k, src, idk] of items) for (const x of src) folderOf.set(k + '|' + x[idk], x.parentFolderId ? (fnameById.get(S(x.parentFolderId)) || '') : 'Unfiled');
+      for (const r of rows) { r.folder = r.basis === 'cleanup' ? '' : (folderOf.get(r.item + '|' + r.id) || ''); r.folderNew = r.basis === 'cleanup' ? '' : (want.get(r.item + '|' + r.id) || ''); }
+    }
+    const fixes = importCheck(cv);
+    const vendorCounts = {}; for (const tg of tags) { const v = ownerLabel(tg.tagId); vendorCounts[v] = (vendorCounts[v] || 0) + 1; }
+    return { data, rows, refs: counter.n, seq, madeFolders, vendorCounts, fixes, library,
+      container: { name: (cv.container || {}).name || '', publicId: (cv.container || {}).publicId || '' } };
+  }
+  const flag = r => r.note.includes('DUPLICATE') ? 'dup' : r.note.includes('NO CONSENT') ? 'consent' : r.note.includes('UNUSED') ? 'unused' : (r.basis === 'name' && r.old !== r.neu ? 'review' : '');
+  const action = r => r.note.includes('DUPLICATE') ? 'Delete (duplicate) – re-point first' : r.note.includes('NO CONSENT') ? 'Rename + add consent condition (Phase 4)' : r.note.includes('UNUSED') ? 'Deleted (not used)' : (r.old !== r.neu ? 'Rename' : 'No change');
+  function toCSV(rows) {
+    const q = v => { v = S(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    const lines = [['Item', 'ID', 'Old name', 'New name', 'Vendor', 'Type', 'Changed', 'Named from', 'Note', 'Folder'].join(',')];
+    for (const r of rows) lines.push([r.item, r.id, r.old, r.neu, r.vendor, r.type, r.old !== r.neu ? 'Yes' : 'No', r.basis, r.note, r.folder || ''].map(q).join(','));
+    return lines.join('\r\n') + '\r\n';
+  }
+  function isStandard(kind, name) {  // does a final name follow the format? (used by the page's name score)
+    const n = S(name).replace(NUM_SUFFIX, '').trim();
+    if (kind === 'Tag') return STD_TAG.test(n) || STD_ANY.test(n) || STD_UTIL.test(n);
+    if (kind === 'Trigger') return STD_TRIG.test(n) || /^(?:Exclude - )?(?:[^-]{2,40}? - )?(?:Consent Initialization|Initialization) - /.test(n);
+    const codes = byLenDesc(new Set([...Object.values(VAR_CODE), 'TPL', 'VAR']));
+    return new RegExp('^(?:' + codes.map(escRe).join('|') + ') - ').test(n);
+  }
+  root.GTMNaming = { run, toCSV, flag, action, pyDumps, isStandard, rules: () => JSON.parse(JSON.stringify(RULES)), defaults: () => JSON.parse(JSON.stringify(DEFAULT_RULES)) };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+const SAMPLE = {"exportFormatVersion": 2, "exportTime": "2026-10-16 10:00:00", "containerVersion": {"path": "x", "accountId": "111", "containerId": "222", "containerVersionId": "0", "container": {"name": "Core Merchant - Test", "publicId": "GTM-TEST"}, "tag": [{"tagId": "1", "name": "Facebook Pixel - Add To Basket", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>fbq('track','AddToCart',{value:{{DLV - Basket Total}}},{eventID:{{CJS - Event ID}}});<\/script>"}], "firingTriggerId": ["10"], "blockingTriggerId": ["15"], "accountId": "111", "containerId": "222"}, {"tagId": "2", "name": "Tik Tok Base", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>ttq.load('{{TikTok - ID}}');ttq.page();<\/script>"}], "accountId": "111", "containerId": "222"}, {"tagId": "3", "name": "Tik Tok ATC", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>ttq.track('AddToCart')<\/script>"}], "firingTriggerId": ["10", "52"], "setupTag": [{"tagName": "Tik Tok Base", "stopOnSetupFailure": false}], "accountId": "111", "containerId": "222"}, {"tagId": "4", "name": "GA4 Event - add to cart", "type": "gaawe", "parameter": [{"type": "TEMPLATE", "key": "eventName", "value": "add_to_cart"}, {"type": "TEMPLATE", "key": "measurementIdOverride", "value": "{{GA4 ID}}"}], "firingTriggerId": ["11"], "setupTag": [{"tagName": "GA4 - Configuration"}], "accountId": "111", "containerId": "222"}, {"tagId": "5", "name": "GA4 - Configuration", "type": "googtag", "parameter": [{"type": "TEMPLATE", "key": "tagId", "value": "G-XXXX"}], "accountId": "111", "containerId": "222"}, {"tagId": "6", "name": "AWin - Conversion Tag - Image", "type": "img", "parameter": [{"type": "TEMPLATE", "key": "url", "value": "https://www.awin1.com/sread.img?merchant={{AWin - Account ID - MASTER LOOKUP}}"}], "firingTriggerId": ["12", "50"], "accountId": "111", "containerId": "222"}, {"tagId": "7", "name": "Awin JS (Consent)", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>AWIN.Tracking.consent=true<\/script>"}], "firingTriggerId": ["13"], "accountId": "111", "containerId": "222"}, {"tagId": "8", "name": "Consent Mode - Default", "type": "cvt_222_99", "parameter": [{"type": "TEMPLATE", "key": "command", "value": "default"}, {"type": "TEMPLATE", "key": "ad_storage", "value": "{{Template - Consent mode Advertising}}"}], "firingTriggerId": ["14"], "accountId": "111", "containerId": "222"}, {"tagId": "9", "name": "Clear ecom DL", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>dataLayer.push({ecommerce:null})<\/script>"}], "firingTriggerId": ["11"], "accountId": "111", "containerId": "222"}, {"tagId": "20", "name": "RTB House Product Page", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script src=\"https://creativecdn.com/tags?id=pr_X_offer_{{DLV - Product item ID}}\"><\/script>"}], "firingTriggerId": ["16"], "accountId": "111", "containerId": "222"}, {"tagId": "21", "name": "Facebook - Add to cart", "type": "html", "parameter": [{"type": "TEMPLATE", "key": "html", "value": "<script>fbq('track','AddToCart')<\/script>"}], "firingTriggerId": ["10"], "accountId": "111", "containerId": "222"}], "trigger": [{"triggerId": "10", "name": "OT Marketing - ecom_event (add_to_cart) Facebook", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "ecom_event"}]}], "filter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{DLV - event_name}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "add_to_cart"}]}, {"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{Template - Marketing Cookies Allowed}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "true"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "11", "name": "CE - ecom_event (add_to_cart)", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "ecom_event"}]}], "filter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{DLV - event_name}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "add_to_cart"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "12", "name": "OT Marketing Checkout Complete - AWin Site Only", "type": "PAGEVIEW", "filter": [{"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{Page URL}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "complete"}]}, {"type": "MATCH_REGEX", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{AWin - Account ID - MASTER LOOKUP}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "false|undefined"}, {"type": "BOOLEAN", "key": "negate", "value": "true"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "13", "name": "CE - OneTrustGroupsUpdated", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "OneTrustGroupsUpdated"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "14", "name": "Consent Initialisation", "type": "CONSENT_INIT", "accountId": "111", "containerId": "222"}, {"triggerId": "15", "name": "blog page", "type": "PAGEVIEW", "filter": [{"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{DLV - Page Category}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "blog"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "16", "name": "OT Marketing - RTB House Product Page Trigger", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "ecom_event"}]}], "filter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{DLV - event_name}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "view_item"}]}, {"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{Custom JS - Marketing Cookies Allowed}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "true"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "17", "name": "TG - No marketing consent then consent", "type": "TRIGGER_GROUP", "parameter": [{"type": "LIST", "key": "triggerIds", "list": [{"type": "TEMPLATE", "key": "triggerId", "value": "13"}, {"type": "TEMPLATE", "key": "triggerId", "value": "14"}]}], "accountId": "111", "containerId": "222"}, {"triggerId": "50", "name": "OT - Awin Site Only", "type": "PAGEVIEW", "filter": [{"type": "MATCH_REGEX", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{AWin - Account ID - MASTER LOOKUP}}"}, {"type": "TEMPLATE", "key": "arg1", "value": ".+"}]}]}, {"triggerId": "51", "name": "OT Performance - Add to Wishlist", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "addToWishlist"}]}]}, {"triggerId": "52", "name": "OT CE - gtm_consent_default (TikTok)", "type": "CUSTOM_EVENT", "customEventFilter": [{"type": "EQUALS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{_event}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "gtm_consent_default"}]}], "filter": [{"type": "CONTAINS", "parameter": [{"type": "TEMPLATE", "key": "arg0", "value": "{{Custom JS - Marketing Cookies Allowed}}"}, {"type": "TEMPLATE", "key": "arg1", "value": "true"}]}]}], "variable": [{"variableId": "30", "name": "DLV - Basket Total", "type": "v", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "basket.total"}], "accountId": "111", "containerId": "222"}, {"variableId": "31", "name": "CJS - Event ID", "type": "jsm", "parameter": [{"type": "TEMPLATE", "key": "javascript", "value": "function(){return {{js - connectStart}}+\".\"+{{Cookie - Visit}}}"}], "accountId": "111", "containerId": "222"}, {"variableId": "32", "name": "Tik Tok ID", "type": "c", "parameter": [{"type": "TEMPLATE", "key": "value", "value": "C123"}], "accountId": "111", "containerId": "222"}, {"variableId": "33", "name": "Template - Marketing Cookies Allowed", "type": "cvt_222_50", "parameter": [], "accountId": "111", "containerId": "222"}, {"variableId": "34", "name": "Custom JS - Marketing Cookies Allowed", "type": "jsm", "parameter": [{"type": "TEMPLATE", "key": "javascript", "value": "function(){return true}"}], "accountId": "111", "containerId": "222"}, {"variableId": "35", "name": "AWin - Account ID - MASTER LOOKUP", "type": "smm", "parameter": [{"type": "TEMPLATE", "key": "input", "value": "{{DLV - Site Name}}"}], "accountId": "111", "containerId": "222"}, {"variableId": "36", "name": "DLV - event_name", "type": "v", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "event_name"}], "accountId": "111", "containerId": "222"}, {"variableId": "37", "name": "Cookie - Visit", "type": "k", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "visit_id"}], "accountId": "111", "containerId": "222"}, {"variableId": "38", "name": "DLV - Site Name", "type": "v", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "siteName"}], "accountId": "111", "containerId": "222"}, {"variableId": "39", "name": "DL - Site Name", "type": "v", "parameter": [{"type": "TEMPLATE", "key": "name", "value": "siteName"}], "accountId": "111", "containerId": "222"}, {"variableId": "40", "name": "TikTok - ID", "type": "c", "parameter": [{"type": "TEMPLATE", "key": "value", "value": "C123"}], "accountId": "111", "containerId": "222"}], "folder": [], "customTemplate": [{"templateId": "99", "name": "Consent Mode (Google tags)"}, {"templateId": "50", "name": "THG Consent variable"}]}};
+const $ = id => document.getElementById(id);
+const state = { library: {}, useLib: true, input: null, fileName: '', isSample: false, result: null, overrides: {}, kind: 'all', show: 'changed', q: '', limit: 300, fix: [], notes: {}, vendors: [], rules: {}, hist: [], histAt: 0, sel: new Set(), cmp: [] };
+const store = {  // per-browser memory: the fix list and names per container, and the vendor list
+  get(k, d) { try { const v = localStorage.getItem('gtmninja.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('gtmninja.' + k, JSON.stringify(v)); } catch { } }
+};
+state.vendors = store.get('vendors', []);
+state.rules = store.get('rules', {});
+state.library = store.get('library', {});
+const cKey = () => { const cv = state.input && (state.input.containerVersion || state.input); return state.isSample ? null : ((cv && cv.container && cv.container.publicId) || state.fileName); };
+function persist() { const k = cKey(); if (k) { const v = { overrides: state.overrides, fix: state.fix, notes: state.notes }; store.set('c.' + k, v); team.saveContainer(k, v); } }
+let downloads = null;
+(async () => { try { downloads = await (window.claude?.use?.('downloads') ?? null); } catch { downloads = null; } updateDl(); })();
+
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2600); }
+function banner(html, err) { const b = $('banner'); b.innerHTML = html; b.classList.toggle('err', !!err); b.hidden = !html; }
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function load(json, name, isSample) {
+  let data;
+  try { data = typeof json === 'string' ? JSON.parse(json) : json; } catch { banner('That file is not valid JSON. Export the container again from GTM → Admin → Export Container.', true); return; }
+  const cv = data.containerVersion || data;
+  if (!Array.isArray(cv.tag) && !Array.isArray(cv.trigger) && !Array.isArray(cv.variable)) { banner('No tags, triggers or variables found. Choose a GTM container export (it has a "containerVersion" section).', true); return; }
+  state.input = data; state.fileName = name; state.isSample = isSample; state.overrides = {}; state.fix = []; state.notes = {}; state.limit = 300; state.hist = []; state.histAt = 0; state.sel = new Set();
+  const saved = cKey() ? store.get('c.' + cKey(), null) : null;
+  if (saved) { state.overrides = saved.overrides || {}; state.fix = saved.fix || []; state.notes = saved.notes || {}; }
+  team.watchContainer();
+  banner(isSample ? '<b>Showing a made-up sample container.</b> Choose your own export to rename a real one.' : '');
+  process();
+}
+function process() {
+  state.result = GTMNaming.run(state.input, { folders: $('folders').checked, cleanup: $('cleanup').checked, overrides: state.overrides, vendors: state.vendors.filter(v => v.name && v.name.trim()), rules: state.rules, library: state.useLib ? state.library : {}, fileBase: baseName() });
+  persist(); render();
+}
+function counts() {
+  const rows = state.result.rows, out = {};
+  for (const k of ['Tag', 'Trigger', 'Variable']) { const rr = rows.filter(r => r.item === k && GTMNaming.flag(r) !== 'unused'); out[k] = { total: rr.length, changed: rr.filter(r => r.old !== r.neu).length }; }
+  out.unused = rows.filter(r => GTMNaming.flag(r) === 'unused').length;
+  out.dup = rows.filter(r => GTMNaming.flag(r) === 'dup').length;
+  out.consent = rows.filter(r => GTMNaming.flag(r) === 'consent').length;
+  out.review = rows.filter(r => GTMNaming.flag(r) === 'review').length;
+  return out;
+}
+function render() {
+  const R = state.result, c = counts();
+  $('results').hidden = false;
+  $('meta').innerHTML = `<span>Container <b>${esc(R.container.name || '—')}</b></span><span class="mono">${esc(R.container.publicId)}</span><span>File <b>${esc(state.fileName)}</b></span><span><b>${R.refs}</b> variable references updated</span><span><b>${R.seq}</b> tag-sequencing links updated</span>` + (R.madeFolders.length ? `<span><b>${R.madeFolders.length}</b> folders created</span>` : '');
+  const stat = (cls, n, l, show, kind) => `<button class="stat ${cls}" data-show="${show}" data-kind="${kind}" aria-pressed="${state.show === show && (kind === 'all' || state.kind === kind)}"><span class="n">${n}</span><span class="l">${l}</span></button>`;
+  $('stats').innerHTML = stat('', `${c.Tag.changed}<span style="font-size:15px;color:var(--muted)"> / ${c.Tag.total}</span>`, 'Tags renamed', 'changed', 'Tag')
+    + stat('', `${c.Trigger.changed}<span style="font-size:15px;color:var(--muted)"> / ${c.Trigger.total}</span>`, 'Triggers renamed', 'changed', 'Trigger')
+    + stat('', `${c.Variable.changed}<span style="font-size:15px;color:var(--muted)"> / ${c.Variable.total}</span>`, 'Variables renamed', 'changed', 'Variable')
+    + stat('dup', c.dup, 'Duplicates – delete', 'dup', 'all') + stat('consent', c.consent, 'No consent condition', 'consent', 'all') + stat('review', c.review, 'Named from old name', 'review', 'all')
+    + (c.unused ? stat('unused', c.unused, 'Deleted – not used', 'unused', 'all') : '');
+  const fx = R.fixes || [], nf = fx.filter(f => f[0] === 'Fixed').length, nc = fx.length - nf;
+  $('importcheck').innerHTML = `<summary>Import check <span class="pill ok">${nf ? nf + ' fixed for import' : 'Ready to import'}</span>${nc ? `<span class="pill warn">${nc} to check</span>` : ''}<span class="why" style="font-weight:400">${fx.length ? 'Show details' : 'Nothing GTM would refuse'}</span></summary>`
+    + (fx.length ? '<ul>' + fx.map(f => `<li><span class="pill ${f[0] === 'Fixed' ? 'ok' : 'warn'}">${esc(f[0])}</span> <b>${esc(f[1])} – ${esc(f[2])}</b>: ${esc(f[3])}. <span class="why">${esc(f[4])}.</span></li>`).join('') + '</ul>' : '');
+  $('reset').hidden = !Object.keys(state.overrides).length;
+  renderFix(); renderRows(); renderLib(); renderScore(); renderHist(); renderSel(); renderCmp(); renderPlanNote();
+}
+function filtered() {
+  const q = state.q.toLowerCase();
+  return state.result.rows.filter(r => {
+    if (state.kind !== 'all' && r.item !== state.kind) return false;
+    const f = GTMNaming.flag(r), over = r.basis === 'override';
+    if (state.show === 'changed' && r.old === r.neu) return false;
+    if (['dup', 'consent', 'review', 'unused'].includes(state.show) && f !== state.show) return false;
+    if (state.show === 'over' && !over) return false;
+    if (state.show === 'library' && r.basis !== 'library') return false;
+    if (q && !(r.old + ' ' + r.neu + ' ' + r.vendor + ' ' + r.type + ' ' + (r.folder || '')).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a, b) => { const o = r => ({ dup: 0, consent: 1, unused: 2, review: 3 }[GTMNaming.flag(r)] ?? 4); return o(a) - o(b); });
+}
+function renderRows() {
+  const list = filtered(), shown = list.slice(0, state.limit);
+  $('count').textContent = `${list.length} of ${state.result.rows.length} items`;
+  $('rows').innerHTML = shown.map((r, i) => {
+    const f = GTMNaming.flag(r), same = r.old === r.neu;
+    const key = r.item.toLowerCase() + '|' + r.old, inList = state.fix.includes(key);
+    const sk = r.item + '|' + r.id;
+    return `<tr class="${f}" draggable="${f === 'unused' ? 'false' : 'true'}" data-key="${esc(key)}"><td>${f === 'unused' ? '' : `<input type="checkbox" class="sel" data-sel="${esc(sk)}" ${state.sel.has(sk) ? 'checked' : ''} aria-label="Select ${esc(r.old)}">`}</td><td>${f === 'unused' ? '' : `<button class="addbtn" data-add="${esc(key)}" title="${inList ? 'In the fix list' : 'Add to fix list'}" aria-label="Add to fix list" ${inList ? 'disabled' : ''}>${inList ? '✓' : '+'}</button>`}</td><td class="kind"><span class="pill ${r.item === 'Tag' ? 'tag' : ''}">${r.item}</span></td>
+      <td class="name old" data-detail="${esc(key)}" title="Click to see what it does">${esc(r.old)}</td>
+      <td class="name">${f === 'unused' ? '<span class="unchanged">deleted – nothing uses it</span>' : ''}<input ${f === 'unused' ? 'hidden ' : ''}class="newin${r.basis === 'override' ? ' over' : ''}" size="${Math.max(18, r.neu.length + 2)}" data-item="${r.item.toLowerCase()}" data-old="${esc(r.old)}" value="${esc(r.neu)}" aria-label="New name for ${esc(r.old)}">${same ? '<div class="unchanged">already standard</div>' : ''}</td>
+      <td>${esc(r.folder || '')}${!$('folders').checked && r.folderNew && r.folderNew !== r.folder ? `<div class="unchanged">with folders: ${esc(r.folderNew)}</div>` : ''}</td>
+      <td>${esc(r.vendor || '')}${r.vendor ? '<br>' : ''}<span class="unchanged">${esc(typeLabel(r))}</span></td>
+      <td>${esc(GTMNaming.action(r))}</td><td class="note">${esc(r.note)}</td></tr>`;
+  }).join('') || `<tr><td colspan="9" style="padding:24px;color:var(--muted)">Nothing matches this filter.</td></tr>`;
+  $('moreWrap').hidden = list.length <= state.limit;
+  $('more').textContent = `Show ${Math.min(300, list.length - state.limit)} more`;
+}
+function setShow(show, kind) {
+  state.show = show; $('show').value = show; if (kind) { state.kind = kind; for (const b of $('kindSeg').children) b.setAttribute('aria-pressed', b.dataset.k === kind); }
+  state.limit = 300; render();
+}
+$('pick').onclick = () => $('file').click();
+$('file').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(t => load(t, f.name, false)); e.target.value = ''; };
+$('sample').onclick = () => load(SAMPLE, 'sample_container.json', true);
+const drop = $('drop');
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) f.text().then(t => load(t, f.name, false)); });
+$('folders').onchange = () => state.input && process();
+$('cleanup').onchange = () => state.input && process();
+$('kindSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.kind = b.dataset.k; for (const x of $('kindSeg').children) x.setAttribute('aria-pressed', x === b); state.limit = 300; render(); };
+$('show').onchange = e => setShow(e.target.value);
+$('q').oninput = e => { state.q = e.target.value; state.limit = 300; renderRows(); };
+$('stats').onclick = e => { const b = e.target.closest('.stat'); if (b) setShow(b.dataset.show, b.dataset.kind); };
+$('more').onclick = () => { state.limit += 300; renderRows(); };
+$('rows').addEventListener('change', e => {
+  const inp = e.target.closest('.newin'); if (!inp) return;
+  const v = inp.value.trim(), key = inp.dataset.item + '|' + inp.dataset.old;
+  change(v ? `Named ${inp.dataset.item} "${short(inp.dataset.old)}"` : `Suggested name back for "${short(inp.dataset.old)}"`, () => { if (v) state.overrides[key] = v; else delete state.overrides[key]; });
+  toast(v ? 'Name set. References updated.' : 'Back to the suggested name.');
+});
+$('rows').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('newin')) e.target.blur(); });
+$('reset').onclick = () => { change('Cleared all my names', () => { state.overrides = {}; }); toast('Manual names cleared – Undo brings them back.'); };
+$('rows').addEventListener('change', e => { const inp = e.target.closest('.newin'); if (inp) { const k = inp.dataset.item + '|' + inp.dataset.old; if (inp.value.trim() && !state.fix.includes(k)) { state.fix.push(k); persist(); renderFix(); renderRows(); } } });
+$('tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; for (const x of $('tabs').children) x.setAttribute('aria-selected', x === b); document.querySelectorAll('.tabpanel').forEach(p => p.hidden = p.dataset.p !== b.dataset.t); };
+
+// ---- fix list: items the user wants to name by hand
+const rowKey = r => r.item.toLowerCase() + '|' + r.old;
+const rowByKey = () => new Map(state.result.rows.filter(r => GTMNaming.flag(r) !== 'unused').map(r => [rowKey(r), r]));
+const optLabel = r => `${r.item} · ${r.old}${r.old !== r.neu ? '  →  ' + r.neu : ''}`;
+function renderFix() {
+  const by = rowByKey();
+  state.fix = state.fix.filter(k => by.has(k));
+  $('fixCount').textContent = state.fix.length ? `(${state.fix.length})` : '';
+  $('fixOpts').innerHTML = [...by.values()].filter(r => !state.fix.includes(rowKey(r))).slice(0, 2000).map(r => `<option value="${esc(optLabel(r))}"></option>`).join('');
+  const z = $('fixZone');
+  if (!state.fix.length) { z.innerHTML = '<div class="empty">Nothing here yet – search above, press + on a row in the table, or drag rows here.</div>'; return; }
+  z.innerHTML = `<div class="tablewrap"><table><thead><tr><th>Item</th><th>Old name</th><th>Your name</th><th>Folder</th><th>Why / note</th><th></th></tr></thead><tbody>` + state.fix.map(k => {
+    const r = by.get(k), mine = r.basis === 'override';
+    return `<tr><td><span class="pill ${r.item === 'Tag' ? 'tag' : ''}">${r.item}</span></td><td class="name old">${esc(r.old)}</td>
+      <td><input type="text" class="fixname" data-key="${esc(k)}" value="${esc(r.neu)}" aria-label="Your name for ${esc(r.old)}">${mine ? '<div class="done">Your name – used everywhere</div>' : '<div class="unchanged">suggested – type to change</div>'}</td>
+      <td>${esc(r.folder || '')}${!$('folders').checked && r.folderNew && r.folderNew !== r.folder ? `<div class="unchanged">with folders: ${esc(r.folderNew)}</div>` : ''}</td>
+      <td><input type="text" class="fixnote" data-key="${esc(k)}" value="${esc(state.notes[k] || '')}" placeholder="optional" aria-label="Note"></td>
+      <td><button class="addbtn" data-del="${esc(k)}" aria-label="Remove from list" title="Remove from list">✕</button>${mine ? ` <button class="addbtn" data-undo="${esc(k)}" title="Back to the suggested name">Undo</button>` : ''}</td></tr>`;
+  }).join('') + '</tbody></table></div>';
+}
+function addFix(key) {
+  if (!key || state.fix.includes(key) || !rowByKey().has(key)) return false;
+  state.fix.push(key); persist(); renderFix(); renderRows(); return true;
+}
+function addFromSearch() {
+  const v = $('fixSearch').value.trim(); if (!v) return;
+  const by = [...rowByKey().values()];
+  let r = by.find(x => optLabel(x) === v);
+  if (!r) { const q = v.toLowerCase(); r = by.find(x => !state.fix.includes(rowKey(x)) && (x.old + ' ' + x.neu).toLowerCase().includes(q)); }
+  if (!r) { toast('No tag, trigger or variable matches that.'); return; }
+  if (addFix(rowKey(r))) toast(`Added ${r.item.toLowerCase()} "${r.old}"`);
+  $('fixSearch').value = '';
+}
+$('fixAddBtn').onclick = addFromSearch;
+$('fixSearch').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addFromSearch(); } });
+$('fixSearch').addEventListener('change', e => { if ([...rowByKey().values()].some(x => optLabel(x) === e.target.value)) addFromSearch(); });
+$('rows').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (b && addFix(b.dataset.add)) toast('Added to the fix list.'); });
+$('rows').addEventListener('dragstart', e => { const tr = e.target.closest('tr[data-key]'); if (tr) { e.dataTransfer.setData('text/x-gtm-key', tr.dataset.key); e.dataTransfer.effectAllowed = 'copy'; } });
+const fz = $('fixZone');
+['dragenter', 'dragover'].forEach(ev => fz.addEventListener(ev, e => { if ([...e.dataTransfer.types].includes('text/x-gtm-key')) { e.preventDefault(); fz.classList.add('over'); } }));
+['dragleave', 'drop'].forEach(ev => fz.addEventListener(ev, () => fz.classList.remove('over')));
+fz.addEventListener('drop', e => { const k = e.dataTransfer.getData('text/x-gtm-key'); if (k) { e.preventDefault(); if (addFix(k)) toast('Added to the fix list.'); } });
+fz.addEventListener('change', e => {
+  const k = e.target.dataset.key; if (!k) return;
+  if (e.target.classList.contains('fixnote')) { if (e.target.value.trim()) state.notes[k] = e.target.value.trim(); else delete state.notes[k]; persist(); return; }
+  if (e.target.classList.contains('fixname')) {
+    const v = e.target.value.trim(), r = rowByKey().get(k);
+    change(`Named ${r.item.toLowerCase()} "${short(r.old)}"`, () => { if (v && v !== r.neu || v && state.overrides[k]) state.overrides[k] = v; else if (!v) delete state.overrides[k]; });
+    toast(v ? 'Name set. References updated.' : 'Back to the suggested name.');
+  }
+});
+fz.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input')) e.target.blur(); });
+fz.addEventListener('click', e => {
+  const d = e.target.closest('[data-del]'), u = e.target.closest('[data-undo]');
+  if (d) { state.fix = state.fix.filter(k => k !== d.dataset.del); persist(); renderFix(); renderRows(); }
+  if (u) { change('Suggested name back', () => { delete state.overrides[u.dataset.undo]; }); toast('Back to the suggested name.'); }
+});
+$('fixClear').onclick = () => { state.fix = []; persist(); renderFix(); renderRows(); toast('Fix list cleared – your names are kept.'); };
+const csvCell = v => { v = String(v ?? ''); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+function parseCSV(t) {
+  const out = []; let row = [], cur = '', q = false;
+  t = t.replace(/^﻿/, '');
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (q) { if (c === '"') { if (t[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true; else if (c === ',') { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cur); out.push(row); row = []; cur = ''; }
+    else cur += c;
+  }
+  if (cur || row.length) { row.push(cur); out.push(row); }
+  const head = (out.shift() || []).map(h => h.trim().toLowerCase());
+  return out.filter(r => r.some(x => x.trim())).map(r => Object.fromEntries(head.map((h, i) => [h, (r[i] || '').trim()])));
+}
+$('fixExport').onclick = () => {
+  const by = rowByKey(), lines = ['Item,Old name,New name,Note'];
+  for (const [k, v] of Object.entries(state.overrides)) {
+    const [item, ...rest] = k.split('|'), old = rest.join('|'), r = by.get(k);
+    lines.push([item.charAt(0).toUpperCase() + item.slice(1), old, v, state.notes[k] || ''].map(csvCell).join(','));
+    if (r && r.neu !== old) lines.push([item.charAt(0).toUpperCase() + item.slice(1), v, v, ''].map(csvCell).join(','));  // keeps the name on a re-run of the renamed file
+  }
+  if (lines.length === 1) { toast('No names set by hand yet.'); return; }
+  save(baseName() + '_overrides.csv', lines.join('\r\n') + '\r\n');
+};
+$('fixImport').onclick = () => $('fixFile').click();
+$('fixFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const rows = parseCSV(await f.text()); const by = rowByKey(); let n = 0;
+  change(`Imported names from ${f.name}`, () => {
+    for (const r of rows) {
+      const item = (r['item'] || '').toLowerCase(), old = r['old name'], neu = r['new name']; if (!item || !old || !neu) continue;
+      const k = item + '|' + old; state.overrides[k] = neu; n++;
+      if (r['note']) state.notes[k] = r['note'];
+      if (by.has(k) && !state.fix.includes(k)) state.fix.push(k);
+    }
+  });
+  toast(n ? `${n} names imported.` : 'No rows with Item, Old name and New name found.');
+};
+
+// ---- my vendors
+function renderVend() {
+  $('vendCount').textContent = state.vendors.length ? `(${state.vendors.length})` : '';
+  $('vendRows').innerHTML = state.vendors.map((v, i) => `<div class="vrow"><input type="text" class="vn" data-i="${i}" data-f="name" value="${esc(v.name)}" placeholder="Vendor name, e.g. Power Reviews" aria-label="Vendor name"><input type="text" data-i="${i}" data-f="match" value="${esc(v.match)}" placeholder="Words that identify it, e.g. powerreviews, ui.powerreviews.com" aria-label="Words that identify it"><button class="addbtn" data-vdel="${i}" aria-label="Remove vendor">✕</button></div>`).join('')
+    || '<p class="small">No vendors added. Tags of unknown vendors still follow the format: the first part of the old name is used as the vendor.</p>';
+}
+function vendChanged() { store.set('vendors', state.vendors); team.saveTeam(); renderVend(); if (state.input) process(); }
+$('vendAdd').onclick = () => { state.vendors.push({ name: '', match: '' }); renderVend(); $('vendRows').querySelector('.vrow:last-child .vn')?.focus(); };
+$('vendRows').addEventListener('change', e => { const i = e.target.dataset.i; if (i == null) return; state.vendors[i][e.target.dataset.f] = e.target.value; vendChanged(); });
+$('vendRows').addEventListener('click', e => { const b = e.target.closest('[data-vdel]'); if (b) { state.vendors.splice(+b.dataset.vdel, 1); vendChanged(); } });
+$('vendExport').onclick = () => { const v = state.vendors.filter(x => x.name.trim()); if (!v.length) { toast('No vendors added yet.'); return; } save('my_vendors.csv', ['Vendor,Match', ...v.map(x => [x.name, x.match].map(csvCell).join(','))].join('\r\n') + '\r\n'); };
+$('vendImport').onclick = () => $('vendFile').click();
+$('vendFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const rows = parseCSV(await f.text()).filter(r => r['vendor']);
+  for (const r of rows) { const ex = state.vendors.find(v => v.name.toLowerCase() === r['vendor'].toLowerCase()); if (ex) ex.match = r['match'] || ''; else state.vendors.push({ name: r['vendor'], match: r['match'] || '' }); }
+  vendChanged(); toast(`${rows.length} vendors imported.`);
+};
+renderVend();
+
+// ---- shared team storage (db): vendors, rules and names per container for everyone who opens this page
+const team = {
+  db: null, unC: null, unT: null, timers: {}, last: {},
+  docId: k => 'c-' + String(k).replace(/[^A-Za-z0-9_\-.~:@+]/g, '_').slice(0, 180),
+  async init() {
+    try { this.db = await (window.claude?.use?.('db') ?? null); } catch { this.db = null; }
+    if (!this.db) return;
+    $('syncBadge').textContent = 'Shared with your team'; $('syncBadge').classList.add('on');
+    $('syncBadge').title = 'Vendors, team rules and names are saved on this page for everyone who opens it.';
+    this.unT = this.db.doc('team/settings').onSnapshot(snap => {
+      if (snap.metadata.hasPendingWrites) return;
+      const d = snap.exists ? snap.data() : null;
+      if (!d) { if (state.vendors.length || Object.keys(state.rules).length) this.saveTeam(); return; }  // first visit: share what this browser had
+      const v = JSON.parse(JSON.stringify(d.vendors || [])), r = JSON.parse(JSON.stringify(d.rules || {}));
+      if (JSON.stringify(v) === JSON.stringify(state.vendors) && JSON.stringify(r) === JSON.stringify(state.rules)) return;
+      state.vendors = v; state.rules = r; store.set('vendors', v); store.set('rules', r); renderVend(); renderRules(); if (state.input) process();
+    }, () => this.off());
+    this.watchContainer(); this.watchLibrary();
+  },
+  off() { this.db = null; $('syncBadge').textContent = 'Saved in this browser only'; $('syncBadge').classList.remove('on'); },
+  watchContainer() {
+    if (!this.db) return;
+    if (this.unC) { this.unC(); this.unC = null; }
+    const k = cKey(); if (!k) return;
+    this.unC = this.db.doc('containers/' + this.docId(k)).onSnapshot(snap => {
+      if (snap.metadata.hasPendingWrites || !snap.exists || cKey() !== k) return;
+      const d = snap.data(), cur = JSON.stringify({ overrides: state.overrides, fix: state.fix, notes: state.notes });
+      const nv = { overrides: { ...(d.overrides || {}) }, fix: [...(d.fix || [])], notes: { ...(d.notes || {}) } };
+      if (JSON.stringify(nv) === cur || JSON.stringify(nv) === this.last[k]) return;
+      Object.assign(state, nv); store.set('c.' + k, nv); process(); toast('Names updated by a teammate.');
+    }, () => {});
+  },
+  write(path, body, key) {  // coalesce bursts into one write per pause, one write at a time
+    clearTimeout(this.timers[key]);
+    this.timers[key] = setTimeout(async () => {
+      if (!this.db) return;
+      try { await this.db.doc(path).set(body); }
+      catch (e) { if (e?.code === 'invalid_argument' || e?.code === 'not_granted') { this.off(); toast('You can view this page but not change the team data – changes stay in this browser.'); } else if (e?.code === 'quota_exceeded') toast('The shared storage is full – changes stay in this browser.'); }
+    }, 900);
+  },
+  libUn: null, libDocs: {},
+  bucket(fp) { let h = 0x811c9dc5; for (const ch of fp) h = Math.imul(h ^ ch.codePointAt(0), 0x01000193) >>> 0; return h % 32; },
+  watchLibrary() {
+    if (!this.db) return;
+    this.libUn = this.db.collection('library').onSnapshot(snap => {
+      if (snap.metadata.hasPendingWrites) return;
+      if (snap.empty) { if (libCount(state.library)) this.saveLibrary(); return; }
+      const L = { tag: {}, trigger: {}, variable: {} };
+      for (const d of snap.docs) { const b = d.data() || {}; this.libDocs[d.id] = JSON.stringify(b.items || {}); const kind = b.kind; if (L[kind]) Object.assign(L[kind], JSON.parse(JSON.stringify(b.items || {}))); }
+      if (JSON.stringify(L) === JSON.stringify({ tag: state.library.tag || {}, trigger: state.library.trigger || {}, variable: state.library.variable || {} })) return;
+      state.library = L; store.set('library', L); if (state.input) process(); else renderLib();
+    }, () => {});
+  },
+  saveLibrary() {
+    if (!this.db) return;
+    clearTimeout(this.timers.lib);
+    this.timers.lib = setTimeout(async () => {
+      const docs = {};
+      for (const kind of ['tag', 'trigger', 'variable']) for (let i = 0; i < 32; i++) docs[kind + '-' + i] = { kind, items: {} };
+      for (const kind of ['tag', 'trigger', 'variable']) for (const [fp, e] of Object.entries(state.library[kind] || {})) docs[kind + '-' + this.bucket(fp)].items[fp] = e;
+      for (const [id, body] of Object.entries(docs)) {  // one write at a time, only buckets that changed
+        const js = JSON.stringify(body.items); if (this.libDocs[id] === js || (!this.libDocs[id] && js === '{}')) continue;
+        try { await this.db.doc('library/' + id).set(body); this.libDocs[id] = js; }
+        catch (e) { if (e?.code === 'quota_exceeded') { toast('The shared library is full – it is kept in this browser.'); return; } if (e?.code === 'invalid_argument') { this.off(); return; } }
+      }
+    }, 900);
+  },
+  saveTeam() { if (this.db) this.write('team/settings', { vendors: state.vendors, rules: state.rules, updatedAt: new Date().toISOString() }, 'team'); },
+  saveContainer(k, v) { if (!this.db) return; const body = JSON.parse(JSON.stringify(v)); this.last[k] = JSON.stringify(body); this.write('containers/' + this.docId(k), { ...body, name: state.result?.container?.name || '', updatedAt: new Date().toISOString() }, 'c' + k); }
+};
+
+// ---- history of name changes (undo / redo)
+const short = t => { t = String(t); return t.length > 48 ? t.slice(0, 47) + '…' : t; };
+function change(label, fn) {
+  const before = JSON.stringify(state.overrides);
+  fn();
+  const after = JSON.stringify(state.overrides);
+  if (before !== after) { state.hist = state.hist.slice(0, state.histAt); state.hist.push({ label, before, after }); if (state.hist.length > 100) state.hist.shift(); state.histAt = state.hist.length; }
+  process();
+}
+function renderHist() {
+  $('undoBtn').disabled = state.histAt === 0; $('redoBtn').disabled = state.histAt >= state.hist.length;
+  $('histNote').textContent = state.hist.length ? `${state.histAt} of ${state.hist.length} steps` : 'No changes yet in this visit';
+  $('histList').innerHTML = state.hist.map((h, i) => `<li class="${i === state.histAt - 1 ? 'cur' : ''}" style="${i >= state.histAt ? 'text-decoration:line-through' : ''}">${esc(h.label)}</li>`).join('');
+}
+$('undoBtn').onclick = () => { if (!state.histAt) return; const h = state.hist[--state.histAt]; state.overrides = JSON.parse(h.before); process(); toast('Undone: ' + h.label); };
+$('redoBtn').onclick = () => { if (state.histAt >= state.hist.length) return; const h = state.hist[state.histAt++]; state.overrides = JSON.parse(h.after); process(); toast('Redone: ' + h.label); };
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.target.matches('input,textarea')) { e.preventDefault(); (e.shiftKey ? $('redoBtn') : $('undoBtn')).click(); } });
+
+// ---- team rules (rule editor)
+function getPath(o, p) { return p.split('.').reduce((a, k) => (a || {})[k], o); }
+function renderRules() {
+  document.querySelectorAll('[data-r]').forEach(inp => { const v = getPath(state.rules, inp.dataset.r); inp.value = Array.isArray(v) ? v.join(', ') : (v || ''); });
+  const n = document.querySelectorAll('[data-r]').length, set = [...document.querySelectorAll('[data-r]')].filter(i => i.value.trim()).length;
+  $('rulesNote').textContent = set ? `(${set} changed)` : '';
+}
+$('rulesBox').addEventListener('change', e => {
+  const p = e.target.dataset.r; if (!p) return;
+  const v = e.target.value.trim(), r = JSON.parse(JSON.stringify(state.rules));
+  if (p === 'removeWords') { if (v) r.removeWords = v.split(',').map(x => x.trim()).filter(Boolean); else delete r.removeWords; }
+  else { const [a, b] = p.split('.'); r[a] = r[a] || {}; if (v) r[a][b] = v; else delete r[a][b]; if (!Object.keys(r[a]).length) delete r[a]; }
+  state.rules = r; store.set('rules', r); team.saveTeam(); renderRules(); if (state.input) process(); toast('Rule saved – names updated.');
+});
+$('rulesReset').onclick = () => { state.rules = {}; store.set('rules', {}); team.saveTeam(); renderRules(); if (state.input) process(); toast('Standard rules back.'); };
+$('rulesExport').onclick = () => save('naming_rules.json', JSON.stringify(state.rules, null, 2));
+$('rulesImport').onclick = () => $('rulesFile').click();
+$('rulesFile').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; try { state.rules = JSON.parse(await f.text()) || {}; } catch { toast('That is not a rules file.'); return; } store.set('rules', state.rules); team.saveTeam(); renderRules(); if (state.input) process(); toast('Rules imported.'); };
+
+// ---- brand library: one set of names for every brand
+const libCount = L => ['tag', 'trigger', 'variable'].reduce((n, k) => n + Object.keys((L || {})[k] || {}).length, 0);
+const libBrands = L => [...new Set(['tag', 'trigger', 'variable'].flatMap(k => Object.values((L || {})[k] || {}).map(e => e.brand || e.id)))].filter(Boolean);
+function renderLib() {
+  const n = libCount(state.library), b = libBrands(state.library), used = state.result ? state.result.rows.filter(r => r.basis === 'library').length : 0;
+  $('libNote').innerHTML = n ? `<b>${n}</b> names from <b>${b.length}</b> brand${b.length === 1 ? '' : 's'} (${b.map(esc).join(', ')}).${state.result ? ` <b>${used}</b> names in this container come from it.` : ''}` : 'Empty. Rename your reference brand first, then save it here.';
+  $('libClear').disabled = !n; $('libExport').disabled = !n;
+}
+function setLibrary(L, msg) { state.library = L || {}; store.set('library', state.library); team.saveLibrary(); if (state.input) process(); else renderLib(); if (msg) toast(msg); }
+$('libUse').onchange = e => { state.useLib = e.target.checked; process(); };
+$('libSave').onclick = () => { if (!state.result) return; const before = libCount(state.library); setLibrary(state.result.library, `Saved. The library now has ${libCount(state.result.library)} names (${libCount(state.result.library) - before} new).`); };
+$('libExport').onclick = () => save('brand_library.json', JSON.stringify(state.library, null, 1));
+$('libImport').onclick = () => $('libFile').click();
+$('libFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  let L; try { L = JSON.parse(await f.text()); } catch { toast('That is not a library file.'); return; }
+  if (!L || !['tag', 'trigger', 'variable'].some(k => L[k])) { toast('That is not a library file.'); return; }
+  const m = JSON.parse(JSON.stringify(state.library));
+  for (const k of ['tag', 'trigger', 'variable']) m[k] = { ...(m[k] || {}), ...(L[k] || {}) };
+  setLibrary(m, `${libCount(L)} names imported into the library.`);
+};
+let libArm = 0;
+$('libClear').onclick = () => { if (Date.now() - libArm > 4000) { libArm = Date.now(); toast('Press Clear library again to empty it for everyone.'); return; } libArm = 0; setLibrary({}, 'Library cleared.'); };
+
+// ---- name score
+function scoreOf(rows, useOld) {
+  const live = rows.filter(r => GTMNaming.flag(r) !== 'unused'), out = {};
+  for (const k of ['Tag', 'Trigger', 'Variable']) { const rr = live.filter(r => r.item === k); out[k] = [rr.filter(r => GTMNaming.isStandard(k, useOld ? r.old : r.neu)).length, rr.length]; }
+  const ok = out.Tag[0] + out.Trigger[0] + out.Variable[0], all = out.Tag[1] + out.Trigger[1] + out.Variable[1];
+  out.pct = all ? Math.round(100 * ok / all) : 100; return out;
+}
+function renderScore() {
+  if (!state.result) return;
+  const rows = state.result.rows, b = scoreOf(rows, true), a = scoreOf(rows, false), c = counts();
+  const fmt = k => `${k}s <b>${a[k][0]}</b>/${a[k][1]}`;
+  const issues = c.dup + c.consent;
+  const health = Math.max(0, a.pct - Math.round(100 * (c.dup + c.consent) / Math.max(1, rows.length)));
+  $('scoreBody').innerHTML = `<div class="score"><span class="big">${health}</span><span class="small">out of 100 after renaming · before: ${b.pct}% of names followed the format</span></div>
+    <div class="bar"><i style="width:${health}%"></i></div>
+    <div class="small">${a.pct}% of names follow the format (${fmt('Tag')} · ${fmt('Trigger')} · ${fmt('Variable')}).${issues ? ` Points off for ${c.dup} duplicates and ${c.consent} triggers with no consent condition.` : ''}${c.unused ? ` ${c.unused} unused items found.` : ''}</div>`;
+}
+
+// ---- find & replace
+let frPlan = [];
+function frMatches() {
+  const f = $('frFind').value, rpl = $('frRepl').value, scope = $('frScope').value, cs = $('frCase').checked;
+  if (!f) return [];
+  const rx = new RegExp(f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), cs ? 'g' : 'gi');
+  return state.result.rows.filter(r => GTMNaming.flag(r) !== 'unused' && (scope === 'all' || r.item === scope) && rx.test(r.neu) && (rx.lastIndex = 0, true))
+    .map(r => ({ key: r.item.toLowerCase() + '|' + r.old, item: r.item, from: r.neu, to: r.neu.replace(rx, rpl).replace(/\s{2,}/g, ' ').replace(/^[\s-]+|[\s-]+$/g, '') })).filter(x => x.to && x.to !== x.from);
+}
+$('frPreview').onclick = () => {
+  frPlan = frMatches();
+  $('frCount').textContent = frPlan.length ? `${frPlan.length} names would change` : 'Nothing to change';
+  $('frList').innerHTML = frPlan.slice(0, 25).map(x => `<li>${esc(x.from)} → <b>${esc(x.to)}</b></li>`).join('') + (frPlan.length > 25 ? `<li>…and ${frPlan.length - 25} more</li>` : '');
+  $('frApply').disabled = !frPlan.length;
+};
+['frFind', 'frRepl', 'frScope', 'frCase'].forEach(id => $(id).addEventListener('input', () => { $('frApply').disabled = true; $('frCount').textContent = ''; $('frList').innerHTML = ''; }));
+$('frApply').onclick = () => {
+  const plan = frPlan; if (!plan.length) return;
+  change(`Replaced "${$('frFind').value}" with "${$('frRepl').value}" in ${plan.length} names`, () => { for (const x of plan) state.overrides[x.key] = x.to; });
+  toast(`${plan.length} names changed – Undo reverses it.`); frPlan = []; $('frApply').disabled = true; $('frList').innerHTML = ''; $('frCount').textContent = '';
+};
+
+// ---- details drawer: what an item does
+function idx() {
+  const cv = state.result.data.containerVersion || state.result.data;
+  const tags = cv.tag || [], trigs = cv.trigger || [], vars = cv.variable || [];
+  const T = new Map(trigs.map(t => [String(t.triggerId), t])), refs = o => [...new Set([...JSON.stringify(o).matchAll(/\{\{([^{}]+)\}\}/g)].map(m => m[1]))];
+  return { cv, tags, trigs, vars, T, refs };
+}
+const BUILTIN_T = { '2147479553': 'All Pages (built-in)', '2147479572': 'Consent Initialization – All Pages (built-in)', '2147479573': 'Initialization – All Pages (built-in)' };
+const OPW = { EQUALS: 'equals', CONTAINS: 'contains', MATCH_REGEX: 'matches RegEx', STARTS_WITH: 'starts with', ENDS_WITH: 'ends with', CSS_SELECTOR: 'matches CSS selector', GREATER: '>', LESS: '<', GREATER_OR_EQUALS: '>=', LESS_OR_EQUALS: '<=' };
+function condText(c) { const p = Object.fromEntries((c.parameter || []).map(x => [x.key, x.value])); const neg = String(p.negate) === 'true'; return `${p.arg0 || ''} ${neg ? 'does not ' : ''}${OPW[c.type] || c.type.toLowerCase()} ${p.arg1 ?? ''}`; }
+function trigLine(I, id) {
+  const t = I.T.get(String(id)); if (!t) return `<li>${esc(BUILTIN_T[id] || 'Trigger ' + id)}</li>`;
+  const conds = [...(t.customEventFilter || []), ...(t.filter || []), ...(t.autoEventFilter || [])].map(condText);
+  const members = t.type === 'TRIGGER_GROUP' ? (t.parameter || []).filter(p => p.key === 'triggerIds').flatMap(p => p.list || []).map(x => I.T.get(String(x.value))?.name || x.value) : [];
+  return `<li><button class="linkish" data-goto="trigger|${esc(String(t.triggerId))}">${esc(t.name)}</button> <span class="small">${esc(typeLabel({ item: 'Trigger', type: t.type }))}</span>${conds.length ? `<div class="small mono">${conds.map(esc).join('<br>')}</div>` : ''}${members.length ? `<div class="small">Group of: ${members.map(esc).join(', ')}</div>` : ''}</li>`;
+}
+function openDetail(key) {
+  const by = new Map(state.result.rows.map(r => [r.item.toLowerCase() + '|' + r.old, r])), r = by.get(key); if (!r) return;
+  const I = idx(), sec = (t, h) => h ? `<section><h3>${t}</h3>${h}</section>` : '', ul = a => a.length ? `<ul>${a.join('')}</ul>` : '<p class="small">None</p>';
+  let body = sec('Name', `<div class="mono">${esc(r.old)}</div><div>→ <b class="mono">${esc(r.neu)}</b></div><div class="small">${esc(GTMNaming.action(r))}${r.note ? ' · ' + esc(r.note) : ''}</div>`)
+    + sec('Folder', `<div>${esc(r.folder || '')}${r.folderNew && r.folderNew !== r.folder ? ` <span class="small">(with folders: ${esc(r.folderNew)})</span>` : ''}</div>`);
+  const tagUses = name => I.tags.filter(t => I.refs(t).includes(name));
+  if (r.item === 'Tag') {
+    const t = I.tags.find(x => String(x.tagId) === String(r.id)); if (!t) return;
+    const fires = (t.firingTriggerId || []).map(id => trigLine(I, id)), blocks = (t.blockingTriggerId || []).map(id => trigLine(I, id));
+    const consent = (t.consentSettings || {}).consentStatus;
+    body += sec('Status', `<div>${t.paused ? 'Paused' : 'Active'} · ${esc(typeLabel(r))} · vendor ${esc(r.vendor || '—')}${consent ? ' · built-in consent check: ' + esc(consent) : ''}</div>`)
+      + sec('Fires on', ul(fires)) + sec('Exceptions', ul(blocks))
+      + sec('Variables it uses', ul(I.refs(t).map(n => `<li class="mono">{{${esc(n)}}}</li>`)))
+      + ((t.setupTag || []).length || (t.teardownTag || []).length ? sec('Tag sequencing', ul([...(t.setupTag || []).map(x => `<li>Before: ${esc(x.tagName)}</li>`), ...(t.teardownTag || []).map(x => `<li>After: ${esc(x.tagName)}</li>`)])) : '');
+  } else if (r.item === 'Trigger') {
+    const t = I.T.get(String(r.id)); if (!t) return;
+    const groups = I.trigs.filter(g => g.type === 'TRIGGER_GROUP' && JSON.stringify(g.parameter || []).includes('"' + t.triggerId + '"'));
+    const users = I.tags.filter(x => (x.firingTriggerId || []).map(String).includes(String(t.triggerId))), blockers = I.tags.filter(x => (x.blockingTriggerId || []).map(String).includes(String(t.triggerId)));
+    body += sec('Set-up', `<ul>${trigLine(I, t.triggerId)}</ul>`)
+      + sec('Fires these tags', ul(users.map(x => `<li><button class="linkish" data-goto="tag|${esc(String(x.tagId))}">${esc(x.name)}</button>${x.paused ? ' <span class="small">(paused)</span>' : ''}</li>`)))
+      + sec('Blocks these tags', ul(blockers.map(x => `<li><button class="linkish" data-goto="tag|${esc(String(x.tagId))}">${esc(x.name)}</button></li>`)))
+      + (groups.length ? sec('In trigger groups', ul(groups.map(g => `<li><button class="linkish" data-goto="trigger|${esc(String(g.triggerId))}">${esc(g.name)}</button></li>`))) : '');
+  } else {
+    const v = I.vars.find(x => String(x.variableId) === String(r.id)); if (!v) return;
+    const pr = (v.parameter || []).filter(p => 'value' in p && p.key !== 'javascript' && String(p.value).length < 120).map(p => `<li class="mono">${esc(p.key)}: ${esc(p.value)}</li>`);
+    const usedT = I.trigs.filter(t => I.refs(t).includes(v.name)), usedV = I.vars.filter(x => x !== v && I.refs(x).includes(v.name));
+    body += sec('Set-up', `<div>${esc(typeLabel(r))}</div>${pr.length ? `<ul>${pr.join('')}</ul>` : ''}`)
+      + sec('Used by tags', ul(tagUses(v.name).map(x => `<li><button class="linkish" data-goto="tag|${esc(String(x.tagId))}">${esc(x.name)}</button></li>`)))
+      + sec('Used by triggers', ul(usedT.map(x => `<li><button class="linkish" data-goto="trigger|${esc(String(x.triggerId))}">${esc(x.name)}</button></li>`)))
+      + sec('Used by variables', ul(usedV.map(x => `<li><button class="linkish" data-goto="variable|${esc(String(x.variableId))}">${esc(x.name)}</button></li>`)))
+      + sec('Reads variables', ul(I.refs(v).map(n => `<li class="mono">{{${esc(n)}}}</li>`)));
+  }
+  $('dTitle').textContent = r.item + ' details'; $('dBody').innerHTML = body + `<div class="adder"><button class="primary" data-dfix="${esc(key)}">Add to fix list</button></div>`;
+  $('detail').hidden = false; $('dClose').focus();
+}
+$('rows').addEventListener('click', e => { const td = e.target.closest('[data-detail]'); if (td) openDetail(td.dataset.detail); });
+$('dClose').onclick = () => { $('detail').hidden = true; };
+$('detail').addEventListener('click', e => {
+  if (e.target === $('detail')) { $('detail').hidden = true; return; }
+  const g = e.target.closest('[data-goto]'); if (g) { const [kind, id] = g.dataset.goto.split('|'); const r = state.result.rows.find(x => x.item.toLowerCase() === kind && String(x.id) === id); if (r) openDetail(kind + '|' + r.old); }
+  const f = e.target.closest('[data-dfix]'); if (f && addFix(f.dataset.dfix)) toast('Added to the fix list.');
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('detail').hidden) $('detail').hidden = true; });
+
+// ---- select items to export (like GTM's export picker)
+function renderSel() {
+  const n = state.sel.size; $('selBar').hidden = !n; $('selCount').textContent = `${n} selected`;
+  const shown = filtered().slice(0, state.limit).filter(r => GTMNaming.flag(r) !== 'unused');
+  $('selAll').checked = shown.length > 0 && shown.every(r => state.sel.has(r.item + '|' + r.id));
+  $('selAll').indeterminate = !$('selAll').checked && shown.some(r => state.sel.has(r.item + '|' + r.id));
+}
+$('rows').addEventListener('change', e => { const c = e.target.closest('.sel'); if (!c) return; if (c.checked) state.sel.add(c.dataset.sel); else state.sel.delete(c.dataset.sel); renderSel(); });
+$('selAll').onchange = e => { const shown = filtered().slice(0, state.limit).filter(r => GTMNaming.flag(r) !== 'unused'); for (const r of shown) { const k = r.item + '|' + r.id; if (e.target.checked) state.sel.add(k); else state.sel.delete(k); } renderRows(); renderSel(); };
+$('selClear').onclick = () => { state.sel = new Set(); renderRows(); renderSel(); };
+$('selFix').onclick = () => { let n = 0; for (const r of state.result.rows) if (state.sel.has(r.item + '|' + r.id) && addFix(r.item.toLowerCase() + '|' + r.old)) n++; toast(`${n} added to the fix list.`); };
+function subset() {
+  const I = idx(), deps = $('selDeps').checked;
+  const tagIds = new Set(), trigIds = new Set(), varNames = new Set();
+  for (const k of state.sel) { const [kind, id] = k.split('|'); if (kind === 'Tag') tagIds.add(id); if (kind === 'Trigger') trigIds.add(id); if (kind === 'Variable') { const v = I.vars.find(x => String(x.variableId) === id); if (v) varNames.add(v.name); } }
+  if (deps) {
+    const byName = new Map(I.tags.map(t => [t.name, t]));
+    for (let grow = true; grow;) {  // tag sequencing pulls in the set-up / clean-up tags
+      grow = false;
+      for (const t of I.tags) if (tagIds.has(String(t.tagId))) for (const s of [...(t.setupTag || []), ...(t.teardownTag || [])]) { const x = byName.get(s.tagName); if (x && !tagIds.has(String(x.tagId))) { tagIds.add(String(x.tagId)); grow = true; } }
+    }
+    for (const t of I.tags) if (tagIds.has(String(t.tagId))) [...(t.firingTriggerId || []), ...(t.blockingTriggerId || [])].forEach(i => trigIds.add(String(i)));
+    for (let grow = true; grow;) { grow = false; for (const t of I.trigs) if (trigIds.has(String(t.triggerId)) && t.type === 'TRIGGER_GROUP') (t.parameter || []).filter(p => p.key === 'triggerIds').flatMap(p => p.list || []).forEach(x => { if (!trigIds.has(String(x.value))) { trigIds.add(String(x.value)); grow = true; } }); }
+    for (const t of I.tags) if (tagIds.has(String(t.tagId))) I.refs(t).forEach(n => varNames.add(n));
+    for (const t of I.trigs) if (trigIds.has(String(t.triggerId))) I.refs(t).forEach(n => varNames.add(n));
+    const vb = new Map(I.vars.map(v => [v.name, v]));
+    for (let grow = true; grow;) { grow = false; for (const n of [...varNames]) { const v = vb.get(n); if (v) for (const m of I.refs(v)) if (!varNames.has(m)) { varNames.add(m); grow = true; } } }
+  }
+  const data = JSON.parse(JSON.stringify(state.result.data)), cv = data.containerVersion || data;
+  cv.tag = (cv.tag || []).filter(t => tagIds.has(String(t.tagId)));
+  cv.trigger = (cv.trigger || []).filter(t => trigIds.has(String(t.triggerId)));
+  cv.variable = (cv.variable || []).filter(v => varNames.has(v.name));
+  const types = new Set([...cv.tag, ...cv.variable].map(x => x.type));
+  cv.customTemplate = (cv.customTemplate || []).filter(ct => [...types].some(t => new RegExp('^cvt_(?:\\w+_)?' + ct.templateId + '$').test(t || '')));
+  cv.builtInVariable = (cv.builtInVariable || []).filter(b => varNames.has(b.name));
+  const fids = new Set([...cv.tag, ...cv.trigger, ...cv.variable].map(x => x.parentFolderId).filter(Boolean).map(String));
+  cv.folder = (cv.folder || []).filter(f => fids.has(String(f.folderId)));
+  for (const k of ['client', 'transformation', 'zone']) delete cv[k];
+  return { data, n: cv.tag.length + cv.trigger.length + cv.variable.length, counts: [cv.tag.length, cv.trigger.length, cv.variable.length] };
+}
+$('selJson').onclick = () => { const s = subset(); save(baseName() + '_selected.json', JSON.stringify(s.data, null, 2)); toast(`${s.counts[0]} tags, ${s.counts[1]} triggers, ${s.counts[2]} variables in the file.`); };
+$('selCsv').onclick = () => save(baseName() + '_selected_rename_map.csv', GTMNaming.toCSV(state.result.rows.filter(r => state.sel.has(r.item + '|' + r.id))));
+
+// ---- journey test plan (for the GTM journey-tester skill)
+const STEPS = [
+  ['home', 'Home page', /\bhome\b|homepage|\bhp\b/i], ['plp', 'Category / list page', /category|\bplp\b|list(?:_|\s)?page|view_item_list|\bc\//i],
+  ['pdp', 'Product page', /product|\bpdp\b|view_item\b|view_item\)/i], ['atc', 'Add to cart', /add_?to_?(?:cart|basket)|addtocart|addedtobasket|\batc\b/i],
+  ['basket', 'Basket', /basket|\bcart\b|view_cart/i], ['checkout', 'Checkout', /checkout(?!.*complete)|begin_checkout|initiate/i],
+  ['purchase', 'Purchase', /purchase|transaction|checkout ?complete|confirmation|order ?complete|\bsale\b/i]];
+function plan() {
+  const I = idx(), rows = new Map(state.result.rows.filter(r => r.item === 'Tag').map(r => [String(r.id), r]));
+  const textOf = id => { const t = I.T.get(String(id)); if (!t) return BUILTIN_T[id] ? 'all pages' : ''; return t.name + ' ' + JSON.stringify([t.customEventFilter, t.filter, t.autoEventFilter, t.parameter]); };
+  const allPages = id => { const t = I.T.get(String(id)); if (!t) return !!BUILTIN_T[id]; return /all ?pages/i.test(t.name) && ['PAGEVIEW', 'DOM_READY', 'WINDOW_LOADED', 'INIT', 'CONSENT_INIT'].includes(t.type); };
+  const out = STEPS.map(([id, label]) => ({ step: id, label, expectedTags: [] })), other = [];
+  for (const t of I.tags) {
+    if (t.paused) continue;
+    const ids = t.firingTriggerId || [], r = rows.get(String(t.tagId));
+    const hit = new Set();
+    for (const i of ids) { if (allPages(i)) STEPS.forEach(s => hit.add(s[0])); const tx = textOf(i); for (const [sid, , rx] of STEPS) if (rx.test(tx)) hit.add(sid); }
+    const info = { tag: t.name, vendor: r?.vendor || '', triggers: ids.map(i => I.T.get(String(i))?.name || BUILTIN_T[i] || String(i)), exceptions: (t.blockingTriggerId || []).map(i => I.T.get(String(i))?.name || String(i)) };
+    if (!hit.size) other.push(info); else out.filter(s => hit.has(s.step)).forEach(s => s.expectedTags.push(info));
+  }
+  return { tool: 'GTM Container Ninja', container: state.result.container, generated: new Date().toISOString(), note: 'Expected tags per journey step, read from trigger names and conditions. Use with the GTM journey-tester skill on the GTM preview of the workspace you imported the renamed file into.', steps: out, notPlaced: other };
+}
+function renderPlanNote() { if (!state.result) return; const p = plan(); $('planNote').textContent = p.steps.map(s => `${s.label}: ${s.expectedTags.length}`).join(' · ') + (p.notPlaced.length ? ` · ${p.notPlaced.length} tags on other events (click, scroll, sign-up…)` : ''); }
+$('planJson').onclick = () => save(baseName() + '_journey_test_plan.json', JSON.stringify(plan(), null, 2));
+$('planCsv').onclick = () => { const p = plan(), lines = ['Step,Tag,Vendor,Triggers,Exceptions']; for (const s of p.steps) for (const t of s.expectedTags) lines.push([s.label, t.tag, t.vendor, t.triggers.join(' | '), t.exceptions.join(' | ')].map(csvCell).join(',')); for (const t of p.notPlaced) lines.push(['Other events', t.tag, t.vendor, t.triggers.join(' | '), t.exceptions.join(' | ')].map(csvCell).join(',')); save(baseName() + '_journey_test_plan.csv', lines.join('\r\n') + '\r\n'); };
+
+// ---- compare brands
+function brandOf(data, file) {
+  const r = GTMNaming.run(data, { folders: true, vendors: state.vendors.filter(v => v.name && v.name.trim()), rules: state.rules, library: state.useLib ? state.library : {}, fileBase: file.replace(/\.json$/i, '') });
+  const tags = r.rows.filter(x => x.item === 'Tag'), byV = {};
+  for (const t of tags) { const v = t.vendor || 'No vendor'; byV[v] = byV[v] || new Set(); byV[v].add(t.neu.split(' - ').slice(1).join(' - ').replace(/\s*\(\d+\)$/, '')); }
+  return { name: r.container.name || file, id: r.container.publicId, file, byV, score: scoreOf(r.rows, false).pct, before: scoreOf(r.rows, true).pct, tags: tags.length };
+}
+function renderCmp() {
+  if (!state.result) return;
+  const cur = brandOf(state.input, state.fileName), list = [cur, ...state.cmp];
+  $('cmpCsv').disabled = $('cmpClear').disabled = !state.cmp.length;
+  if (!state.cmp.length) { $('cmpBody').innerHTML = 'Only the container above so far. Add the exports of other brands to compare them.'; return; }
+  const vendors = [...new Set(list.flatMap(b => Object.keys(b.byV)))].sort((a, b) => list.filter(x => x.byV[b]).length - list.filter(x => x.byV[a]).length || a.localeCompare(b));
+  const head = `<tr><th>Vendor</th>${list.map(b => `<th>${esc(b.name)}<div class="small">${esc(b.id)} · score ${b.score}</div></th>`).join('')}<th>Different set-up</th></tr>`;
+  const body = vendors.map(v => {
+    const sets = list.map(b => b.byV[v]), all = [...new Set(sets.flatMap(s => s ? [...s] : []))];
+    const diff = all.filter(a => sets.some(s => s && !s.has(a)) && sets.filter(s => s && s.has(a)).length);
+    return `<tr><td><b>${esc(v)}</b></td>${sets.map(s => s ? `<td class="num">${s.size}</td>` : '<td class="miss">–</td>').join('')}<td class="small">${diff.length && sets.filter(Boolean).length > 1 ? diff.slice(0, 6).map(esc).join(', ') + (diff.length > 6 ? ` +${diff.length - 6}` : '') : ''}</td></tr>`;
+  }).join('');
+  $('cmpBody').innerHTML = `<div class="tablewrap"><table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table></div><p class="small">Numbers are tag actions per vendor (after renaming). "Different set-up" lists actions a vendor has in some brands but not in the others; "–" means the brand has no tags for that vendor.</p>`;
+  state.cmpView = { list, vendors };
+}
+$('cmpAdd').onclick = () => $('cmpFile').click();
+$('cmpFile').onchange = async e => {
+  const files = [...e.target.files]; e.target.value = ''; let n = 0;
+  for (const f of files) { try { const d = JSON.parse(await f.text()); if (!(d.containerVersion || d).tag) throw 0; state.cmp.push(brandOf(d, f.name)); n++; } catch { toast(f.name + ' is not a GTM container export.'); } }
+  renderCmp(); if (n) toast(`${n} brand${n > 1 ? 's' : ''} added.`);
+};
+$('cmpClear').onclick = () => { state.cmp = []; renderCmp(); };
+$('cmpCsv').onclick = () => {
+  const { list, vendors } = state.cmpView, lines = [['Vendor', ...list.map(b => `${b.name} (${b.id})`)].map(csvCell).join(',')];
+  for (const v of vendors) lines.push([v, ...list.map(b => b.byV[v] ? [...b.byV[v]].join(' | ') : '')].map(csvCell).join(','));
+  lines.push(['Name score', ...list.map(b => b.score)].map(csvCell).join(','));
+  save('brand_comparison.csv', lines.join('\r\n') + '\r\n');
+};
+renderRules();
+team.init();
+
+const VT = { v: 'Data Layer Variable', jsm: 'Custom JavaScript', c: 'Constant', k: '1st-party cookie', u: 'URL', smm: 'Lookup Table', remm: 'RegEx Table', d: 'DOM Element', j: 'JavaScript Variable', aev: 'Auto-Event', f: 'HTTP Referrer', e: 'Custom Event', uv: 'Undefined', gtes: 'Event Settings', gas: 'GA Settings', awec: 'User-Provided Data', ed: 'Event Data', vis: 'Element Visibility' };
+function typeLabel(r) {
+  if (r.item === 'Variable') return VT[r.type] || (r.type.startsWith('cvt_') ? 'Template variable' : r.type);
+  if (r.item === 'Trigger') return r.type.toLowerCase().replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+  return r.type;
+}
+const baseName = () => state.fileName.replace(/\.json$/i, '') || 'container';
+function updateDl() {
+  ['dlJson', 'dlXlsx', 'dlCsv'].forEach(id => $(id).disabled = false);
+}
+function browserSave(filename, data) {  // fallback when the page's save feature is not available in this view
+  const blob = data instanceof Blob ? data : new Blob([data], { type: /\.csv$/.test(filename) ? 'text/csv' : 'application/json' });
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('Downloading ' + filename + ' – if nothing happens, open the page in a full browser tab.');
+}
+async function save(filename, data) {
+  if (!downloads) { browserSave(filename, data); return; }
+  try { await downloads.save({ filename, data }); toast('Saved ' + filename); }
+  catch (err) {
+    if (err?.code === 'declined') return;
+    if (err?.code === 'rate_limited') { toast('A save is already open – finish that one first.'); return; }
+    browserSave(filename, data);
+  }
+}
+$('dlJson').onclick = () => save(baseName() + '_renamed.json', JSON.stringify(state.result.data, null, 2));
+$('dlCsv').onclick = () => save(baseName() + '_rename_map.csv', GTMNaming.toCSV(state.result.rows));
+$('dlXlsx').onclick = async () => {
+  if (!window.ExcelJS) { toast('The Excel library did not load. Try again in a moment.'); return; }
+  const buf = await buildXlsx(); save(baseName() + '_summary.xlsx', new Blob([buf]));
+};
+async function buildXlsx() {
+  const R = state.result, rows = R.rows, wb = new ExcelJS.Workbook();
+  const fill = c => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + c } });
+  const GREY = fill('D9D9D9'), RED = fill('F8CBAD'), AMBER = fill('FFE699'), BLUE = fill('DDEBF7'), HEAD = fill('1F3A5F');
+  const head = (ws, r, vals) => { const row = ws.getRow(r); vals.forEach((v, i) => { const c = row.getCell(i + 1); c.value = v; c.fill = HEAD; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.alignment = { wrapText: true, vertical: 'top' }; }); };
+  const ws = wb.addWorksheet('Summary');
+  ws.getCell('A1').value = 'GTM naming review – ' + (R.container.name || baseName()); ws.getCell('A1').font = { bold: true, size: 14 };
+  ws.getCell('A2').value = 'Container ' + R.container.publicId;
+  head(ws, 4, ['Item', 'Total', 'Renamed', 'Already standard', 'Duplicates (delete)', 'No consent condition', 'Named from old name (review)']);
+  let r = 5;
+  for (const k of ['Tag', 'Trigger', 'Variable']) {
+    const rr = rows.filter(x => x.item === k && GTMNaming.flag(x) !== 'unused');
+    ws.getRow(r++).values = [k + 's', rr.length, rr.filter(x => x.old !== x.neu).length, rr.filter(x => x.old === x.neu).length,
+      rr.filter(x => GTMNaming.flag(x) === 'dup').length, rr.filter(x => GTMNaming.flag(x) === 'consent').length, rr.filter(x => GTMNaming.flag(x) === 'review').length];
+  }
+  r++;
+  const notes = [`${R.refs} variable references ({{…}}) updated inside tags, triggers and variables.`, `${R.seq} Tag Sequencing references updated.`];
+  if (R.madeFolders.length) notes.push(`${R.madeFolders.length} vendor folders created: ${R.madeFolders.join(', ')}`);
+  if (Object.keys(state.overrides).length) notes.push(`${Object.keys(state.overrides).length} names set by hand.`);
+  const nl = rows.filter(x => x.basis === 'library').length; if (nl) notes.push(`${nl} names taken from the brand library (same set-up as in another brand).`);
+  const un = rows.filter(x => GTMNaming.flag(x) === 'unused');
+  if (un.length) notes.push(`${un.filter(x => x.item === 'Trigger').length} triggers and ${un.filter(x => x.item === 'Variable').length} variables deleted – nothing in use depends on them (sheet "Deleted – not used").`);
+  const fx = R.fixes || [];
+  notes.push(`Import check: ${fx.filter(f => f[0] === 'Fixed').length} problem(s) GTM would refuse were fixed, ${fx.filter(f => f[0] === 'Check').length} item(s) to check (sheet "Import check").`);
+  for (const n of notes) ws.getCell(r++, 1).value = '• ' + n;
+  r++; ws.getCell(r++, 1).value = 'Colour key'; ws.getCell(r - 1, 1).font = { bold: true };
+  for (const [f, t] of [[RED, 'Red – duplicate of another item: re-point anything that uses it to the original, then delete'],
+    [AMBER, 'Amber – trigger was named as consent-gated (Marketing / Performance) but has no consent condition: renamed to the format, add the consent condition'],
+    [BLUE, 'Blue – named from the old name only (no config signal): quick review'],
+    [GREY, 'Grey – deleted: no tag, trigger group or used variable depends on it']]) { ws.getCell(r, 1).fill = f; ws.getCell(r++, 2).value = t; }
+  r++; ws.getCell(r++, 1).value = 'Tags by vendor'; ws.getCell(r - 1, 1).font = { bold: true };
+  head(ws, r++, ['Vendor', 'Tags']);
+  for (const [v, n] of Object.entries(R.vendorCounts).sort((a, b) => b[1] - a[1])) ws.getRow(r++).values = [v, n];
+  [16, 12, 10, 16, 18, 20, 26].forEach((w, i) => ws.getColumn(i + 1).width = w);
+  const hdr = ['Item', 'ID', 'Old name', 'New name', 'Folder', 'Vendor', 'Type', 'Changed', 'Named from', 'Action', 'Note'];
+  const sheet = (title, sel) => {
+    const w = wb.addWorksheet(title); head(w, 1, hdr);
+    sel.forEach((x, i) => {
+      const row = w.getRow(i + 2);
+      row.values = [x.item, String(x.id), x.old, x.neu, x.folder || '', x.vendor, x.type, x.old !== x.neu ? 'Yes' : 'No', x.basis, GTMNaming.action(x), x.note];
+      const f = { dup: RED, consent: AMBER, review: BLUE, unused: GREY }[GTMNaming.flag(x)];
+      row.eachCell({ includeEmpty: true }, c => { c.alignment = { wrapText: true, vertical: 'top' }; if (f) c.fill = f; });
+    });
+    w.views = [{ state: 'frozen', ySplit: 1 }]; w.autoFilter = { from: 'A1', to: { row: Math.max(1, sel.length + 1), column: 11 } };
+    [10, 8, 45, 45, 26, 16, 22, 9, 11, 32, 60].forEach((wd, i) => w.getColumn(i + 1).width = wd);
+  };
+  const ord = x => ({ dup: 0, consent: 1, unused: 2 }[GTMNaming.flag(x)] ?? 3);
+  sheet('Rename Map', [...rows].sort((a, b) => ord(a) - ord(b) || a.item.localeCompare(b.item) || a.neu.toLowerCase().localeCompare(b.neu.toLowerCase())));
+  sheet('Duplicates – delete', rows.filter(x => GTMNaming.flag(x) === 'dup'));
+  sheet('No consent condition', rows.filter(x => GTMNaming.flag(x) === 'consent'));
+  if (un.length) sheet('Deleted – not used', un);
+  if (state.fix.length) { const by = new Map(rows.map(x => [x.item.toLowerCase() + '|' + x.old, x])); const fl = state.fix.map(k => by.get(k)).filter(Boolean); if (fl.length) sheet('My fix list', fl.map(x => ({ ...x, note: [state.notes[x.item.toLowerCase() + '|' + x.old], x.note].filter(Boolean).join(' – ') }))); }
+  const GREEN = fill('E2EFDA'), wi = wb.addWorksheet('Import check');
+  head(wi, 1, ['Status', 'Item', 'Name', 'Issue', 'What was done']);
+  (fx.length ? fx : [['OK', '', '', 'Nothing GTM would refuse', '']]).forEach((f, i) => {
+    const row = wi.getRow(i + 2); row.values = f;
+    row.eachCell({ includeEmpty: true }, c => { c.alignment = { wrapText: true, vertical: 'top' }; c.fill = f[0] === 'Check' ? AMBER : GREEN; });
+  });
+  wi.views = [{ state: 'frozen', ySplit: 1 }];
+  [9, 10, 45, 60, 60].forEach((wd, i) => wi.getColumn(i + 1).width = wd);
+  return wb.xlsx.writeBuffer();
+}
+load(SAMPLE, 'sample_container.json', true);
+</script>
