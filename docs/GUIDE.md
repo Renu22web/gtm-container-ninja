@@ -123,6 +123,10 @@ Each feature below says what it does, how it works, and shows an example.
 
 **Example:** `Meta - cHTML - AddToCart (2)` → "Duplicate of Meta - cHTML - AddToCart – re-point, then delete".
 
+**Paused copies:** when one copy is paused, the **active** tag or trigger keeps the clean name and the paused copy gets the number, with the note "paused copy, delete it". Copies with the same code and the same firing conditions are only numbered; the trigger's name is never added to the tag name.
+
+**Example:** active `Criteo - cHTML - addToCart` and paused `Criteo - cHTML - addToCart (2)`, not `Criteo - cHTML - addToCart - CE - Add To Cart - MKT (2)`.
+
 ### 4.7 Clean-up of unused items (optional)
 
 **What:** removes triggers and variables that nothing uses.

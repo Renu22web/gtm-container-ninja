@@ -992,36 +992,45 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
     }
 
     const rerun = tags.length > 0 && tags.filter(x => STD_TAG.test(x.name)).length >= 0.6 * tags.length;  // file was already renamed once
-    function dedupe(items, extraFn, orig, combine) {
+    function dedupe(items, extraFn, orig, combine, same, rank) {  // same: set-up key (true duplicates are only numbered); rank: 0 active, 1 paused
+      const rk = rank || (() => 0);
       const groups = new Map();
       for (const [k, v] of items) { const key = v[0].toLowerCase(); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(k); }
-      for (const [key, ks0] of groups) {
-        let ks = ks0;
+      for (const [key, ks] of groups) {
         if (ks.length === 1) continue;
+        let sk = null;
+        if (same) { sk = new Map(); for (const k of ks) { const s = same(k); sk.set(s, (sk.get(s) || 0) + 1); } }
+        let cand = ks.filter(k => !sk || sk.get(same(k)) === 1);  // identical set-ups are duplicates, not different items
+        if (rank) {
+          const act = ks.filter(k => rk(k) === 0);
+          cand = act.length > 1 ? cand.filter(k => rk(k) === 0) : [];  // paused leftovers never get extra words
+        }
         if (orig && rerun) {  // re-run: names that were already made unique by an earlier run are kept
           const o = new Map(ks.map(k => [k, orig.get(k).replace(NUM_SUFFIX, '').trim()]));
           const ol = [...o.values()].map(x => x.toLowerCase());
           const others = new Set([...items].filter(([j]) => !ks.includes(j)).map(([, v]) => v[0].toLowerCase()));
-          for (const k of [...ks]) {
+          for (const k of [...cand]) {
             const x = o.get(k).toLowerCase();
             if (x.split(' - ')[0] === key.split(' - ')[0] && x !== key && ol.filter(y => y === x).length === 1 && !others.has(x) && items.get(k)[1] !== 'override') {
-              items.get(k)[0] = o.get(k); ks = ks.filter(j => j !== k);
+              items.get(k)[0] = o.get(k); cand = cand.filter(j => j !== k);
             }
           }
-          if (ks.length < 2) continue;
+          if (cand.length < 2) cand = [];
         }
-        const extras = new Map(ks.map(k => [k, extraFn(k) || '']));
+        const extras = new Map(cand.map(k => [k, extraFn(k) || '']));
         const vals = [...extras.values()].map(e => e.toLowerCase());
-        for (const k of ks) {
+        for (const k of cand) {
           const e = extras.get(k), it = items.get(k);
           if (e && vals.filter(x => x === e.toLowerCase()).length === 1 && !it[0].toLowerCase().includes(e.toLowerCase())) it[0] = combine ? combine(k, e) : `${it[0]} - ${e}`;
         }
       }
       const final = new Map(), first = new Map();
-      for (const v of items.values()) {
+      const order = [...items.keys()].sort((a, b) => rk(a) - rk(b));  // stable: active items first, then paused copies
+      for (const k of order) {
+        const v = items.get(k);
         const base = v[0], key = base.toLowerCase(); final.set(key, (final.get(key) || 0) + 1);
         if (final.get(key) === 1) first.set(key, base);
-        else { v[0] = `${base} (${final.get(key)})`; v.push(`DUPLICATE of "${first.get(key)}" – re-point anything using it, then delete`); }
+        else { v[0] = `${base} (${final.get(key)})`; v.push(`DUPLICATE of "${first.get(key)}" – ` + (rk(k) ? 'paused copy, delete it' : 're-point anything using it, then delete')); }
       }
     }
     const ov = opts.overrides || {};
@@ -1045,11 +1054,22 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
       if ([...consentSet(extra)].some(c => !have.has(c))) return neu;
       return trigCombine(k, extra);
     };
+    const trigById = new Map(trigs.map(t => [S(t.triggerId), t]));
+    const trigKey = name => S(name).replace(/^[^-]+ - /, '').replace(NUM_SUFFIX, '').trim().replace(/\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)/g, '').replace(/\s+/g, ' ').trim().toLowerCase();  // 'Criteo - CE - Add To Cart - MKT (2)' -> 'ce - add to cart'
+    const trigTextAdded = (tg, nw) => {
+      const o = stdTagName(tg.name).replace(NUM_SUFFIX, '').trim();
+      if (!o.toLowerCase().startsWith(nw.toLowerCase() + ' - ')) return false;
+      const extra = o.slice(nw.length + 3).replace(/\s+/g, ' ').trim().toLowerCase();
+      const keys = new Set();
+      for (const f0 of tg.firingTriggerId || []) { const f = S(f0); if (newTrig.has(f)) keys.add(trigKey(newTrig.get(f)[0])); if (trigById.has(f)) keys.add(trigKey(trigById.get(f).name)); }
+      return keys.has(extra);
+    };
     for (const [items, src, idk] of [[newTag, tags, 'tagId'], [newTrig, trigs, 'triggerId'], [newVar, vars, 'variableId']]) for (const x of src) {
       const v = items.get(idk === 'triggerId' ? S(x[idk]) : x[idk]);
       if (v[1] === 'override') continue;
       const tp = idk === 'triggerId' ? trigParts.get(S(x[idk])) : null;
       if (tp && !tp[4] && tp[1] !== 'TG') v[0] = keepTrigger(S(x[idk]), x.name, v[0]);
+      else if (idk === 'tagId' && trigTextAdded(x, v[0])) { /* an earlier run added the trigger's name to tell copies apart: dropped, duplicates are numbered instead */ }
       else v[0] = keepExisting(idk === 'tagId' ? stdTagName(x.name) : x.name, v[0]);
     }
     // ---- brand library: the same set-up gets the same name in every brand
@@ -1116,12 +1136,14 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
         if (kind === 'trigger') it[3] = (it[3] ? it[3] + '; ' : '') + msg; else it.push(msg);
       }
     }
-    dedupe(newTrig, k => newTrig.get(k)[2], new Map(trigs.map(x => [S(x.triggerId), x.name])), trigCombine);
+    const pausedTag = new Map(tags.map(x => [x.tagId, !!x.paused]));
+    const trigRank = k => { const us = [...(fireBy.get(k) || []), ...(blockBy.get(k) || [])]; return us.length && us.every(t => pausedTag.get(t)) ? 1 : 0; };  // 1 = used only by paused tags
+    dedupe(newTrig, k => newTrig.get(k)[2], new Map(trigs.map(x => [S(x.triggerId), x.name])), trigCombine, k => fps.trigger.get(k), trigRank);
     dedupe(newTag, k => {
       const tg = tags.find(x => x.tagId === k); const f = (tg.firingTriggerId || [null])[0];
-      if (f && newTrig.has(S(f))) return newTrig.get(S(f))[0].replace(/^[^-]+ - /, '').replace(/\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)/g, '');
+      if (f && newTrig.has(S(f))) return newTrig.get(S(f))[0].replace(/^[^-]+ - /, '').replace(NUM_SUFFIX, '').trim().replace(/\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)/g, '');
       return newTag.get(k)[2];
-    }, new Map(tags.map(x => [x.tagId, stdTagName(x.name)])));
+    }, new Map(tags.map(x => [x.tagId, stdTagName(x.name)])), null, k => fps.tag.get(k), k => pausedTag.get(k) ? 1 : 0);
     dedupe(newVar, k => newVar.get(k)[2], new Map(vars.map(x => [x.variableId, x.name])));
     const builtin = new Set((cv.builtInVariable || []).map(b => (b.name || '').toLowerCase()));
     for (const items of [newTag, newTrig, newVar]) for (const v of items.values()) v[0] = safeName(v[0]);
