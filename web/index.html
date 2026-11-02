@@ -189,6 +189,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
       <label class="check"><input type="checkbox" id="folders"> Put each vendor in its own folder</label>
       <span class="unchanged">Folders: one per vendor, plus 00 Consent &amp; CMP, 01 Shared - Multiple Vendors (used by 2+ vendors) and 02 No Vendor - Helpers (no vendor's tags use it)</span>
       <label class="check"><input type="checkbox" id="cleanup"> Delete triggers and variables that nothing uses</label>
+      <label class="check"><input type="checkbox" id="merge" checked> Merge items with exactly the same set-up (keep one, re-point everything to it, delete the copy)</label>
       <span class="sync" id="syncBadge">Saved in this browser only</span>
       <span class="unchanged">Kept if any tag (paused too), a trigger group that is itself used, or a used variable depends on it</span>
       <details class="vend" id="rulesBox">
@@ -556,6 +557,67 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
     const out = segs.filter(Boolean).join(' - ');
     return out || norm(core);
   }
+  const MERGE_IGNORE = new Set(['accountId', 'containerId', 'fingerprint', 'parentFolderId', 'notes', 'name', 'path', 'tagManagerUrl', 'workspaceId',
+    'tagId', 'triggerId', 'variableId', 'monitoringMetadata', 'monitoringMetadataTagNameKey']);
+  const stableStr = o => Array.isArray(o) ? '[' + o.map(stableStr).join(',') + ']' : (o && typeof o === 'object') ? '{' + Object.keys(o).sort().map(k => JSON.stringify(k) + ':' + stableStr(o[k])).join(',') + '}' : JSON.stringify(o);
+  function mergeIdentical(cv) {  // same set-up: the first live one is kept, references re-pointed, the copy deleted (paused tags never merged)
+    const tags = cv.tag || [], trigs = cv.trigger || [], vars = cv.variable || [];
+    const vmap = new Map(), tmap = new Map(), gmap = new Map();
+    const canon = o => Array.isArray(o) ? o.map(canon) : (o && typeof o === 'object') ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, canon(v)]))
+      : typeof o === 'string' ? o.replace(/\{\{([^{}]+)\}\}/g, (m, n) => '{{' + (vmap.get(n) || n) + '}}') : o;
+    const tm = i => tmap.get(S(i)) || S(i);
+    const key = (x, kind) => {
+      const d = {}; for (const k of Object.keys(x)) if (!MERGE_IGNORE.has(k)) d[k] = x[k];
+      if (kind === 'trigger' && x.type === 'TRIGGER_GROUP')
+        d.parameter = (d.parameter || []).map(p => p.key === 'triggerIds' ? Object.assign({}, p, { list: (p.list || []).map(i => Object.assign({}, i, { value: tm(i.value) })).sort((a, b) => a.value < b.value ? -1 : a.value > b.value ? 1 : 0) }) : p);
+      if (kind === 'tag') for (const f of ['firingTriggerId', 'blockingTriggerId']) d[f] = [...new Set((x[f] || []).map(tm))].sort();
+      return stableStr(canon(d));
+    };
+    const liveT = new Set(tags.filter(g => !g.paused).flatMap(g => [...(g.firingTriggerId || []), ...(g.blockingTriggerId || [])].map(S)));
+    const tby = new Map(trigs.map(t => [S(t.triggerId), t])); let todo = [...liveT];
+    while (todo.length) { const t = tby.get(todo.pop()); for (const p of (t && t.parameter) || []) if (p.key === 'triggerIds') for (const i of p.list || []) if (!liveT.has(S(i.value))) { liveT.add(S(i.value)); todo.push(S(i.value)); } }
+    const rx = o => { const out = new Set(); for (const s_ of allStrings(o)) for (const m of s_.matchAll(/\{\{([^{}]+)\}\}/g)) out.add(m[1]); return out; };
+    const vby = new Map(vars.map(v => [v.name, v]));
+    const liveV = new Set(); for (const o of [...tags.filter(g => !g.paused), ...trigs.filter(t => liveT.has(S(t.triggerId))), ...['client', 'transformation', 'zone'].map(k => cv[k] || [])]) for (const m of rx(o)) liveV.add(m);
+    todo = [...liveV]; while (todo.length) for (const m of rx(vby.get(todo.pop()) || {})) if (!liveV.has(m)) { liveV.add(m); todo.push(m); }
+    const stableSort = (arr, f) => arr.map((x, i) => [x, i]).sort((a, b) => (f(a[0]) - f(b[0])) || (a[1] - b[1])).map(x => x[0]);
+    const order = { variable: stableSort(vars, v => liveV.has(v.name) ? 0 : 1), trigger: stableSort(trigs, t => liveT.has(S(t.triggerId)) ? 0 : 1), tag: tags };
+    const pass = (kind, mp, by) => {
+      const first = new Map(); let changed = false;
+      for (const x of order[kind]) {
+        if (kind === 'tag' && x.paused) continue;
+        const ident = S(x[by]); if (mp.has(ident)) continue;
+        const k = key(x, kind);
+        if (first.has(k)) { mp.set(ident, first.get(k)); changed = true; } else first.set(k, ident);
+      }
+      return changed;
+    };
+    for (let i = 0; i < 10; i++) { const a = pass('variable', vmap, 'name'), b = pass('trigger', tmap, 'triggerId'); if (!(a || b)) break; }
+    for (let i = 0; i < 10; i++) {
+      let ch = false;
+      for (const [n, v] of vmap) if (vmap.has(v)) { vmap.set(n, vmap.get(v)); ch = true; }
+      for (const [n, v] of tmap) if (tmap.has(v)) { tmap.set(n, tmap.get(v)); ch = true; }
+      if (!ch) break;
+    }
+    pass('tag', gmap, 'name');
+    const trigName = new Map(trigs.map(t => [S(t.triggerId), t.name]));
+    const out = [...vars.filter(v => vmap.has(v.name)).map(v => ['Variable', v.variableId, v.name, v.type || '', vmap.get(v.name)]),
+      ...trigs.filter(t => tmap.has(S(t.triggerId))).map(t => ['Trigger', t.triggerId, t.name, t.type || '', trigName.get(tmap.get(S(t.triggerId))) || '']),
+      ...tags.filter(g => gmap.has(g.name)).map(g => ['Tag', g.tagId, g.name, g.type || '', gmap.get(g.name)])];
+    if (!out.length) return out;
+    cv.variable = vars.filter(v => !vmap.has(v.name)); cv.trigger = trigs.filter(t => !tmap.has(S(t.triggerId))); cv.tag = tags.filter(g => !gmap.has(g.name));
+    for (const k of ['tag', 'trigger', 'variable', 'client', 'transformation', 'zone']) if (cv[k]) cv[k] = replaceRefs(cv[k], vmap, [0]);
+    for (const g of cv.tag) {
+      for (const f of ['firingTriggerId', 'blockingTriggerId']) if (g[f] && g[f].length) g[f] = [...new Set(g[f].map(tm))];
+      for (const f of ['setupTag', 'teardownTag']) for (const s_ of g[f] || []) if (gmap.has(s_.tagName)) s_.tagName = gmap.get(s_.tagName);
+    }
+    for (const t of cv.trigger) for (const p of t.parameter || []) if (p.key === 'triggerIds') {
+      const seen = new Set(), lst = [];
+      for (const i of p.list || []) { const v = tm(i.value); if (!seen.has(v)) { seen.add(v); lst.push(Object.assign({}, i, { value: v })); } }
+      p.list = lst;
+    }
+    return out;
+  }
   function findUnused(cv) {  // triggers and variables nothing in use depends on (all tags count as in use, paused ones too)
     const tags = cv.tag || [], trigs = cv.trigger || [], vars = cv.variable || [];
     const trigRefs = o => {
@@ -844,6 +906,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
       cv.trigger = (cv.trigger || []).filter(x => !dT.has(x));
       cv.variable = (cv.variable || []).filter(x => !dV.has(x));
     }
+    const merged = opts.merge === false ? [] : mergeIdentical(cv);  // same set-up: one is kept, references re-pointed, the copy deleted
     let tags = cv.tag || [], trigs = cv.trigger || [], vars = cv.variable || [];
     const tmpl = {}; for (const ct of cv.customTemplate || []) tmpl[S(ct.templateId)] = ct.name || '';
     const tmplName = t => { const m = /^cvt_(?:\w+_)?(\d+)$/.exec(t || ''); return m ? (tmpl[m[1]] || '') : ''; };
@@ -1234,6 +1297,8 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
     for (const vr of vars) { const [n, basis, , ...rest] = newVar.get(vr.variableId); rows.push({ item: 'Variable', id: vr.variableId, old: vr.name, neu: n, vendor: '', type: vr.type || '', basis, note: notes(rest) }); vr.name = n; }
 
     for (const [kind, rid, nm, typ] of removed) rows.push({ item: kind, id: rid, old: nm, neu: '(deleted)', vendor: '', type: typ, basis: 'cleanup', note: 'UNUSED: no tag, trigger group or used variable depends on it – deleted' });
+    const newOf = new Map(rows.map(r => [r.item + '|' + r.old, r.neu]));
+    for (const [kind, rid, nm, typ, keep0] of merged) { const keep = newOf.get(kind + '|' + keep0) || keep0; rows.push({ item: kind, id: rid, old: nm, neu: '(deleted)', vendor: '', type: typ, basis: 'cleanup', note: `MERGED into "${keep}" – exactly the same set-up; everything that used it now uses "${keep}" (UNUSED copy deleted)` }); }
 
     const madeFolders = [];
     {  // folder per item: always worked out (shown in the Folder column); only applied to the file with the folders option
@@ -1277,7 +1342,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
       container: { name: (cv.container || {}).name || '', publicId: (cv.container || {}).publicId || '' } };
   }
   const flag = r => r.note.includes('DUPLICATE') ? 'dup' : r.note.includes('NAME CLASH') ? 'review' : r.note.includes('NO CONSENT') ? 'consent' : r.note.includes('UNUSED') ? 'unused' : (r.basis === 'name' && r.old !== r.neu ? 'review' : '');
-  const action = r => r.note.includes('DUPLICATE') ? 'Delete (duplicate) – re-point first' : r.note.includes('NAME CLASH') ? 'Check name – different set-up, keep both' : r.note.includes('NO CONSENT') ? 'Rename + add consent condition (Phase 4)' : r.note.includes('UNUSED') ? 'Deleted (not used)' : (r.old !== r.neu ? 'Rename' : 'No change');
+  const action = r => r.note.includes('DUPLICATE') ? 'Delete (duplicate) – re-point first' : r.note.includes('NAME CLASH') ? 'Check name – different set-up, keep both' : r.note.includes('MERGED') ? 'Deleted (merged – same set-up)' : r.note.includes('NO CONSENT') ? 'Rename + add consent condition (Phase 4)' : r.note.includes('UNUSED') ? 'Deleted (not used)' : (r.old !== r.neu ? 'Rename' : 'No change');
   function toCSV(rows) {
     const q = v => { v = S(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     const lines = [['Item', 'ID', 'Old name', 'New name', 'Vendor', 'Type', 'Changed', 'Named from', 'Note', 'Folder'].join(',')];
@@ -1328,7 +1393,7 @@ function load(json, name, isSample) {
   process();
 }
 function process() {
-  state.result = GTMNaming.run(state.input, { folders: $('folders').checked, cleanup: $('cleanup').checked, overrides: state.overrides, vendors: state.vendors.filter(v => v.name && v.name.trim()), rules: state.rules, library: state.useLib ? state.library : {}, fileBase: baseName() });
+  state.result = GTMNaming.run(state.input, { folders: $('folders').checked, cleanup: $('cleanup').checked, merge: $('merge').checked, overrides: state.overrides, vendors: state.vendors.filter(v => v.name && v.name.trim()), rules: state.rules, library: state.useLib ? state.library : {}, fileBase: baseName() });
   persist(); render();
 }
 function counts() {
@@ -1400,6 +1465,7 @@ const drop = $('drop');
 drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) f.text().then(t => load(t, f.name, false)); });
 $('folders').onchange = () => state.input && process();
 $('cleanup').onchange = () => state.input && process();
+$('merge').onchange = () => state.input && process();
 $('kindSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.kind = b.dataset.k; for (const x of $('kindSeg').children) x.setAttribute('aria-pressed', x === b); state.limit = 300; render(); };
 $('show').onchange = e => setShow(e.target.value);
 $('q').oninput = e => { state.q = e.target.value; state.limit = 300; renderRows(); };

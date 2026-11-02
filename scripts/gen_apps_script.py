@@ -2,12 +2,15 @@
 """Build a Google Apps Script that applies a GTM rename IN PLACE through the Tag Manager API,
 so GTM shows renamed items as Modified (an import matches by name, so renames show as Deleted + Added).
 
-Usage: python3 gen_apps_script.py <original_export.json> <renamed_export.json> <out.gs> [--folders]
+Usage: python3 gen_apps_script.py <original_export.json> <renamed_export.json> <out.gs> [--folders] [--merges <name>_merges.json]
+(the merges file is found next to the renamed file when it is not given)
 """
-import json, sys
+import json, os, sys
 
 orig_p, new_p, out_p = sys.argv[1:4]
 use_folders = '--folders' in sys.argv
+mp = sys.argv[sys.argv.index('--merges') + 1] if '--merges' in sys.argv else new_p.replace('_renamed.json', '_merges.json')
+merges = json.load(open(mp, encoding='utf-8')) if os.path.exists(mp) and mp != new_p else {'variable': {}, 'trigger': {}, 'tag': {}}
 a = json.load(open(orig_p, encoding='utf-8')); a = a.get('containerVersion', a)
 b = json.load(open(new_p, encoding='utf-8')); b = b.get('containerVersion', b)
 
@@ -22,12 +25,15 @@ for k, i in KINDS:
     folder_of[k] = {x: fname_new.get(str(n[x].get('parentFolderId', '')), '') for x in n if x in o}
 var_map = {v[0]: v[1] for v in ren['variable'].values()}
 tag_map = {v[0]: v[1] for v in ren['tag'].values()}
-dele['tag'] = {}  # tags are never deleted
+var_map.update(merges.get('variable', {}))  # merged copies: references now use the item that was kept
+tag_map.update(merges.get('tag', {}))
+trig_map = {k: v for k, v in merges.get('trigger', {}).items() if v}
+dele['tag'] = {i: n for i, n in dele['tag'].items() if n in merges.get('tag', {})}  # only merged copies; other tags are never deleted
 
 data = {
     'container': (a.get('container') or {}).get('publicId', ''),
     'accountId': str(a.get('accountId', '')), 'containerId': str(a.get('containerId', '')),
-    'rename': ren, 'delete': dele, 'varMap': var_map, 'tagMap': tag_map,
+    'rename': ren, 'delete': dele, 'varMap': var_map, 'tagMap': tag_map, 'trigMap': trig_map,
     'folders': folder_of if use_folders else {},
 }
 counts = {k: len(ren[k]) for k, _ in KINDS}
@@ -106,7 +112,7 @@ function run() {
   }
 
   // 2) delete unused triggers, then unused variables
-  for (const kind of ['trigger', 'variable']) {
+  for (const kind of ['tag', 'trigger', 'variable']) {
     const byId = {}; all[kind].forEach(x => byId[String(x[idKey[kind]])] = x);
     for (const id in DATA.delete[kind]) {
       const key = 'del-' + kind + ':' + id;
@@ -159,6 +165,14 @@ function fixRefs_(o) {
   if (o && typeof o === 'object') {
     for (const k in o) {
       if (k === 'name' || k === 'path' || k === 'fingerprint') continue;
+      if ((k === 'firingTriggerId' || k === 'blockingTriggerId') && Array.isArray(o[k])) {  // merged triggers: point to the one kept
+        o[k] = o[k].map(i => DATA.trigMap[String(i)] || String(i)).filter((v, i, a) => a.indexOf(v) === i);
+        continue;
+      }
+      if (k === 'key' && o[k] === 'triggerIds' && Array.isArray(o.list)) {  // trigger groups
+        const seen = {}; o.list = o.list.filter(it => { it.value = DATA.trigMap[String(it.value)] || String(it.value); if (seen[it.value]) return false; seen[it.value] = 1; return true; });
+        continue;
+      }
       if ((k === 'setupTag' || k === 'teardownTag') && Array.isArray(o[k])) {
         o[k].forEach(s => { if (DATA.tagMap[s.tagName]) s.tagName = DATA.tagMap[s.tagName]; });
         continue;

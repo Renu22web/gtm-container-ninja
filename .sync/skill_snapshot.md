@@ -166,6 +166,10 @@ Every tag, trigger and variable is moved into one folder, decided by **which ven
 - A folder `01 Utilities & Data Layer` left by an older run is removed once it is empty.
 - The folders are the same on a first run and on a re-run of the renamed file.
 
+## Same set-up – merged (default; `--no-merge` to switch off)
+
+Tags, triggers and variables with **exactly the same set-up** (every setting and value, not only the name) are merged: one is kept, everything that used the copy is re-pointed to it ({{variable}} references, firing/blocking triggers, trigger groups, tag sequencing), and the copy is deleted (grey rows, Action "Deleted (merged – same set-up)"). The item kept is the one live tags use; **paused tags are never merged** (a paused copy of a live tag is renamed with ` - Paused`). Example: two `DLV - basketTotal` variables with the same dataLayer key and settings used by different tags/triggers → one stays, both sets of tags/triggers use it. Two items with the same name but a different set-up are never merged (see *Same name, different set-up*). The run writes `<name>_merges.json`, which `gen_apps_script.py` uses so the rename-in-place script re-points and deletes the copies too. On the page: option "Merge items with exactly the same set-up" (on by default).
+
 ## Clean-up – `--cleanup` (optional)
 
 Deletes triggers and variables that nothing in use depends on. Tags are never deleted, and renamed items are never deleted – they keep their IDs (rename in place to see them as *Modified* in GTM).
@@ -441,6 +445,93 @@ def find_unused(cv):
         if v:
             for r in refs(v) - used_v: used_v.add(r); todo.append(r)
     return ([t for t in trigs if str(t['triggerId']) not in used_t], [v for v in vars_ if v['name'] not in used_v])
+
+MERGE_IGNORE = {'accountId', 'containerId', 'fingerprint', 'parentFolderId', 'notes', 'name', 'path', 'tagManagerUrl', 'workspaceId',
+                'tagId', 'triggerId', 'variableId', 'monitoringMetadata', 'monitoringMetadataTagNameKey'}
+
+def merge_identical(cv):
+    """Items with exactly the same set-up are merged: the first one is kept, every reference to a copy now points to it, the copy is deleted.
+    Paused tags are never merged. Returns [(kind, id, name, type, kept name)]."""
+    tags, trigs, vars_ = cv.get('tag', []) or [], cv.get('trigger', []) or [], cv.get('variable', []) or []
+    vmap, tmap, gmap = {}, {}, {}  # variable name -> kept name, trigger id -> kept id, tag name -> kept name
+    def canon(o):
+        if isinstance(o, dict): return {k: canon(v) for k, v in o.items()}
+        if isinstance(o, list): return [canon(v) for v in o]
+        if isinstance(o, str): return re.sub(r'\{\{([^{}]+)\}\}', lambda m: '{{' + vmap.get(m.group(1), m.group(1)) + '}}', o)
+        return o
+    def key(x, kind):
+        d = {k: v for k, v in x.items() if k not in MERGE_IGNORE}
+        if kind == 'trigger' and x.get('type') == 'TRIGGER_GROUP':
+            d['parameter'] = [dict(p, list=sorted([dict(i, value=tmap.get(str(i.get('value')), str(i.get('value')))) for i in p.get('list', []) or []], key=lambda i: i['value']))
+                              if p.get('key') == 'triggerIds' else p for p in d.get('parameter', []) or []]
+        if kind == 'tag':
+            for f in ('firingTriggerId', 'blockingTriggerId'):
+                d[f] = sorted({tmap.get(str(i), str(i)) for i in x.get(f, []) or []})
+        return json.dumps(canon(d), sort_keys=True, ensure_ascii=False)
+    # the item kept is the one live tags use: live first, then items used only by paused tags
+    live_t = {str(i) for g in tags if not g.get('paused') for f in ('firingTriggerId', 'blockingTriggerId') for i in g.get(f, []) or []}
+    tby = {str(t['triggerId']): t for t in trigs}; todo = list(live_t)
+    while todo:
+        t = tby.get(todo.pop())
+        for p in (t or {}).get('parameter', []) or []:
+            if p.get('key') == 'triggerIds':
+                for i in p.get('list', []) or []:
+                    if str(i.get('value')) not in live_t: live_t.add(str(i.get('value'))); todo.append(str(i.get('value')))
+    rx = lambda o: {m for s_ in all_strings(o) for m in re.findall(r'\{\{([^{}]+)\}\}', s_)}
+    vby = {v['name']: v for v in vars_}
+    live_v = set().union(*[rx(g) for g in tags if not g.get('paused')], *[rx(t) for t in trigs if str(t['triggerId']) in live_t],
+                         *[rx(cv.get(k, []) or []) for k in ('client', 'transformation', 'zone')]); todo = list(live_v)
+    while todo:
+        for m in rx(vby.get(todo.pop(), {})):
+            if m not in live_v: live_v.add(m); todo.append(m)
+    order = {'variable': sorted(vars_, key=lambda v: v['name'] not in live_v), 'trigger': sorted(trigs, key=lambda t: str(t['triggerId']) not in live_t), 'tag': tags}
+    def pass_(items, kind, idk, mp, by):
+        first, changed = {}, False
+        for x in order[kind]:
+            if kind == 'tag' and x.get('paused'): continue
+            ident = str(x[by])
+            if ident in mp: continue
+            k = key(x, kind)
+            if k in first: mp[ident] = first[k]; changed = True
+            else: first[k] = ident
+        return changed
+    for _ in range(10):
+        a = pass_(vars_, 'variable', 'variableId', vmap, 'name')
+        b = pass_(trigs, 'trigger', 'triggerId', tmap, 'triggerId')
+        if not (a or b): break
+    for _ in range(10):  # a variable may point to a variable that was merged
+        changed = False
+        for n in list(vmap):
+            if vmap[n] in vmap: vmap[n] = vmap[vmap[n]]; changed = True
+        for n in list(tmap):
+            if tmap[n] in tmap: tmap[n] = tmap[tmap[n]]; changed = True
+        if not changed: break
+    pass_(tags, 'tag', 'tagId', gmap, 'name')
+    trig_name = {str(t['triggerId']): t['name'] for t in trigs}
+    out = [('Variable', v['variableId'], v['name'], v.get('type', ''), vmap[v['name']]) for v in vars_ if v['name'] in vmap] + \
+          [('Trigger', t['triggerId'], t['name'], t.get('type', ''), trig_name.get(tmap[str(t['triggerId'])], '')) for t in trigs if str(t['triggerId']) in tmap] + \
+          [('Tag', g['tagId'], g['name'], g.get('type', ''), gmap[g['name']]) for g in tags if g['name'] in gmap]
+    if not out: return out
+    cv['variable'] = [v for v in vars_ if v['name'] not in vmap]
+    cv['trigger'] = [t for t in trigs if str(t['triggerId']) not in tmap]
+    cv['tag'] = [g for g in tags if g['name'] not in gmap]
+    for k in ('tag', 'trigger', 'variable', 'client', 'transformation', 'zone'):
+        if k in cv: cv[k] = replace_refs(cv[k], vmap, [0])
+    for g in cv['tag']:
+        for f in ('firingTriggerId', 'blockingTriggerId'):
+            if g.get(f): g[f] = list(dict.fromkeys(tmap.get(str(i), str(i)) for i in g[f]))
+        for f in ('setupTag', 'teardownTag'):
+            for s_ in g.get(f, []) or []:
+                if s_.get('tagName') in gmap: s_['tagName'] = gmap[s_['tagName']]
+    for t in cv['trigger']:
+        for p in t.get('parameter', []) or []:
+            if p.get('key') == 'triggerIds':
+                seen, lst = set(), []
+                for i in p.get('list', []) or []:
+                    v = tmap.get(str(i.get('value')), str(i.get('value')))
+                    if v not in seen: seen.add(v); lst.append(dict(i, value=v))
+                p['list'] = lst
+    return out
 
 # ---------------------------------------------------------------- helpers
 def norm(s):
@@ -727,6 +818,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('export'); ap.add_argument('--out', default='.'); ap.add_argument('--folders', action='store_true'); ap.add_argument('--overrides', help='CSV with columns Item,Old name,New name to force specific names')
     ap.add_argument('--cleanup', action='store_true', help='delete triggers and variables that nothing in use depends on')
+    ap.add_argument('--no-merge', action='store_true', help='keep items that have exactly the same set-up (by default they are merged into one)')
     ap.add_argument('--rules', help='JSON with the team rules: {"labels": {"html": "cHTML", "img": "Image Pixel", "template": "Template"}, "removeWords": ["iCrossing"], "folders": {"consent": "...", "shared": "...", "novendor": "..."}}')
     ap.add_argument('--library', help='brand library JSON from an earlier run (<name>_library.json): the same set-up gets the same name as in the other brands')
     ap.add_argument('--vendors', help='CSV with columns Vendor,Match (comma-separated words that identify the vendor in names, template names or code)')
@@ -744,6 +836,7 @@ def main():
         removed = [('Trigger', x['triggerId'], x['name'], x.get('type', '')) for x in un_t] + [('Variable', x['variableId'], x['name'], x.get('type', '')) for x in un_v]
         cv['trigger'] = [x for x in cv.get('trigger', []) or [] if id(x) not in drop_t]
         cv['variable'] = [x for x in cv.get('variable', []) or [] if id(x) not in drop_v]
+    merged = [] if a.no_merge else merge_identical(cv)  # same set-up: one is kept, references re-pointed, the copy deleted
     tags, trigs, vars_ = cv.get('tag', []) or [], cv.get('trigger', []) or [], cv.get('variable', []) or []
     tmpl = {}
     for ct in cv.get('customTemplate', []) or []:
@@ -1178,6 +1271,10 @@ def main():
 
     for kind, rid, nm, typ in removed:
         rows.append((kind, rid, nm, '(deleted)', '', typ, 'cleanup', 'UNUSED: no tag, trigger group or used variable depends on it – deleted'))
+    new_of = {(r[0], r[2]): r[3] for r in rows}
+    for kind, rid, nm, typ, keep in merged:
+        keep = new_of.get((kind, keep), keep)
+        rows.append((kind, rid, nm, '(deleted)', '', typ, 'cleanup', f'MERGED into "{keep}" – exactly the same set-up; everything that used it now uses "{keep}" (UNUSED copy deleted)'))
 
     # ---- optional vendor folders
     made_folders = []
@@ -1236,6 +1333,13 @@ def main():
     jout = os.path.join(a.out, f'{base}_renamed.json'); cout = os.path.join(a.out, f'{base}_rename_map.csv'); mout = os.path.join(a.out, f'{base}_summary.md')
     json.dump(data, open(jout, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
     lout = os.path.join(a.out, f'{base}_library.json')
+    mmap = {'variable': {}, 'trigger': {}, 'tag': {}}  # for the rename-in-place script: what each merged copy was replaced by
+    old_trig_id = {t['name']: str(t['triggerId']) for t in trigs}
+    for kind, rid, nm, typ, keep in merged:
+        if kind == 'Variable': mmap['variable'][nm] = new_of.get(('Variable', keep), keep)
+        elif kind == 'Trigger': mmap['trigger'][str(rid)] = next((str(r[1]) for r in rows if r[0] == 'Trigger' and r[2] == keep and r[6] != 'cleanup'), '')
+        else: mmap['tag'][nm] = new_of.get(('Tag', keep), keep)
+    if merged: json.dump(mmap, open(os.path.join(a.out, f'{base}_merges.json'), 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
     json.dump(library, open(lout, 'w', encoding='utf-8'), indent=1, ensure_ascii=False, sort_keys=True)
     with open(cout, 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f); w.writerow(['Item', 'ID', 'Old name', 'New name', 'Vendor', 'Type', 'Changed', 'Named from', 'Note', 'Folder'])
@@ -1254,6 +1358,7 @@ def main():
               f'- {seq} Tag Sequencing references (set-up / clean-up tag names) updated.',
               f'- {sum(1 for r in rows if "DUPLICATE" in r[7])} duplicates numbered (2), (3)… – delete after re-pointing (red in the Excel summary).',
               f'- {sum(1 for r in rows if "NO CONSENT" in r[7])} triggers were named as consent-gated but have no consent condition (amber in the Excel summary).']
+    if merged: lines.append(f'- {len(merged)} items merged into an item with exactly the same set-up (references re-pointed, copy deleted; grey in the Excel summary).')
     if removed: lines.append(f'- {sum(1 for r in removed if r[0] == "Trigger")} triggers and {sum(1 for r in removed if r[0] == "Variable")} variables deleted because nothing in use depends on them (grey in the Excel summary).')
     if made_folders: lines.append(f'- {len(made_folders)} vendor folders created: ' + ', '.join(made_folders) + '.')
     lines.append(f'- Import check: {sum(1 for f in fixes if f[0] == "Fixed")} problem(s) GTM would refuse were fixed, {sum(1 for f in fixes if f[0] == "Check")} item(s) to check.')
@@ -1294,6 +1399,7 @@ def write_xlsx(path, cv, base, rows, refs, seq, made_folders, vendors, fixes=())
         if 'DUPLICATE' in r[7]: return 'Delete (duplicate) – re-point first'
         if 'NAME CLASH' in r[7]: return 'Check name – different set-up, keep both'
         if 'NO CONSENT' in r[7]: return 'Rename + add consent condition (Phase 4)'
+        if 'MERGED' in r[7]: return 'Deleted (merged – same set-up)'
         if 'UNUSED' in r[7]: return 'Deleted (not used)'
         return 'Rename' if r[2] != r[3] else 'No change'
     def fill_for(r):
