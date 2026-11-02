@@ -993,7 +993,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
     }
 
     const rerun = tags.length > 0 && tags.filter(x => STD_TAG.test(x.name)).length >= 0.6 * tags.length;  // file was already renamed once
-    function dedupe(items, extraFn, orig, combine, same, rank) {  // same: set-up key (true duplicates are only numbered); rank: 0 active, 1 paused
+    function dedupe(items, extraFn, orig, combine, same, rank, detail) {  // same: set-up key (true duplicates are only numbered); rank: 0 active, 1 paused
       const rk = rank || (() => 0);
       const groups = new Map();
       for (const [k, v] of items) { const key = v[0].toLowerCase(); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(k); }
@@ -1024,14 +1024,27 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
           const e = extras.get(k), it = items.get(k);
           if (e && vals.filter(x => x === e.toLowerCase()).length === 1 && !it[0].toLowerCase().includes(e.toLowerCase())) it[0] = combine ? combine(k, e) : `${it[0]} - ${e}`;
         }
+        if (detail && same) {  // still the same name but set up differently: a word from the set-up tells them apart
+          const sub = new Map();
+          for (const k of ks) { const n = items.get(k)[0].toLowerCase(); if (!sub.has(n)) sub.set(n, []); sub.get(n).push(k); }
+          for (const kk of sub.values()) {
+            if (kk.length < 2 || new Set(kk.map(k => same(k))).size < 2) continue;
+            const det = new Map(kk.map(k => [k, detail(k, kk)]));
+            const dl = [...det.values()].map(x => x.toLowerCase());
+            for (const k of kk) {
+              const e = det.get(k), it = items.get(k);
+              if (e && dl.filter(x => x === e.toLowerCase()).length === 1 && !it[0].toLowerCase().includes(e.toLowerCase())) it[0] = combine ? combine(k, e) : `${it[0]} - ${e}`;
+            }
+          }
+        }
       }
-      const final = new Map(), first = new Map();
+      const final = new Map(), first = new Map(), firstK = new Map();
       const used = new Set([...items.values()].map(v => v[0].toLowerCase()));
       const order = [...items.keys()].sort((a, b) => rk(a) - rk(b));  // stable: active items first, then paused copies
       for (const k of order) {
         const v = items.get(k);
         const base = v[0], key = base.toLowerCase(); final.set(key, (final.get(key) || 0) + 1);
-        if (final.get(key) === 1) first.set(key, base);
+        if (final.get(key) === 1) { first.set(key, base); firstK.set(key, k); }
         else if (rk(k)) {  // paused copy of a live item: kept, renamed to the format with ' - Paused'
           const pn = combine ? combine(k, 'Paused') : `${base} - Paused`;
           let n2 = pn, i = 1;
@@ -1039,7 +1052,11 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
           v[0] = n2; used.add(n2.toLowerCase());
           v.push(`PAUSED copy of live "${first.get(key)}" – renamed to the format and kept`);
         }
-        else { v[0] = `${base} (${final.get(key)})`; v.push(`DUPLICATE of "${first.get(key)}" – re-point anything using it, then delete`); }
+        else {
+          v[0] = `${base} (${final.get(key)})`;
+          if (same && same(k) !== same(firstK.get(key))) v.push(`NAME CLASH with "${first.get(key)}" – different set-up, keep both and check the name`);  // different set-up: not a duplicate
+          else v.push(`DUPLICATE of "${first.get(key)}" – re-point anything using it, then delete`);
+        }
       }
     }
     const ov = opts.overrides || {};
@@ -1162,7 +1179,30 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
     const pausedV = reach(union([...tags.filter(x => pausedTag.get(x.tagId)).map(refNames), ...trigs.filter(x => trigRank(S(x.triggerId))).map(refNames)]));
     const oldVar = new Map(vars.map(x => [x.variableId, x.name]));
     const varRank = k => (pausedV.has(oldVar.get(k)) && !liveV.has(oldVar.get(k))) ? 1 : 0;  // used only by paused tags
-    dedupe(newVar, k => newVar.get(k)[2], new Map(vars.map(x => [x.variableId, x.name])), null, null, varRank);
+    const varById = new Map(vars.map(x => [x.variableId, x]));
+    const JS_WORDS = new Set(['function', 'return', 'var', 'let', 'const', 'true', 'false', 'null', 'undefined', 'typeof', 'catch', 'try', 'else', 'window',
+      'document', 'this', 'new', 'length', 'indexOf', 'split', 'join', 'push', 'toString', 'toLowerCase', 'toUpperCase', 'replace', 'match']);
+    const jsRaw = k => S(params(varById.get(k)).javascript || '');
+    const jsCode = k => jsRaw(k).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, "''").replace(/\{\{[^{}]+\}\}/g, ' ');
+    const jsRefs = k => [...new Set([...jsRaw(k).matchAll(/\{\{([^{}]+)\}\}/g)].map(m => m[1]))].map(r => norm(stripPrefix(r, VAR_PREFIX)));
+    const jsTokens = k => {
+      const c = jsCode(k);
+      const local = new Set([...[...c.matchAll(/\b(?:var|let|const|function)\s+([A-Za-z_$][\w$]*)/g)].map(m => m[1]), ...[...c.matchAll(/\bcatch\s*\(\s*([A-Za-z_$][\w$]*)/g)].map(m => m[1])]);
+      return [...new Set(c.match(/[A-Za-z_$][\w$]{3,}/g) || [])].filter(t => !JS_WORDS.has(t) && !local.has(t));
+    };
+    const varDetail = (k, group) => {  // what only this variable's code uses: a variable it reads, else a property it reads, else a name in its code
+      if (varById.get(k).type !== 'jsm') return '';
+      const oth = group.filter(j => j !== k && varById.get(j).type === 'jsm');
+      const oRefs = new Set(oth.flatMap(j => jsRefs(j).map(r => r.toLowerCase())));
+      const refs = jsRefs(k).filter(r => !oRefs.has(r.toLowerCase()));
+      if (refs.length) return refs[0];
+      const oTok = new Set(oth.flatMap(j => jsTokens(j)));
+      const uniq = jsTokens(k).filter(t => !oTok.has(t));
+      const c = jsCode(k);
+      const props = uniq.filter(t => new RegExp('(?<!window)\\.' + t.replace(/[$]/g, '\\$') + '\\b').test(c));
+      return (props[0] || uniq[0] || '');
+    };
+    dedupe(newVar, k => newVar.get(k)[2], new Map(vars.map(x => [x.variableId, x.name])), null, k => fps.variable.get(k), varRank, varDetail);
     const builtin = new Set((cv.builtInVariable || []).map(b => (b.name || '').toLowerCase()));
     for (const items of [newTag, newTrig, newVar]) for (const v of items.values()) v[0] = safeName(v[0]);
     for (const v of newVar.values()) if (builtin.has(v[0].toLowerCase())) v[0] += ' - Custom';
@@ -1236,8 +1276,8 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
     return { data, rows, refs: counter.n, seq, madeFolders, vendorCounts, fixes, library,
       container: { name: (cv.container || {}).name || '', publicId: (cv.container || {}).publicId || '' } };
   }
-  const flag = r => r.note.includes('DUPLICATE') ? 'dup' : r.note.includes('NO CONSENT') ? 'consent' : r.note.includes('UNUSED') ? 'unused' : (r.basis === 'name' && r.old !== r.neu ? 'review' : '');
-  const action = r => r.note.includes('DUPLICATE') ? 'Delete (duplicate) – re-point first' : r.note.includes('NO CONSENT') ? 'Rename + add consent condition (Phase 4)' : r.note.includes('UNUSED') ? 'Deleted (not used)' : (r.old !== r.neu ? 'Rename' : 'No change');
+  const flag = r => r.note.includes('DUPLICATE') ? 'dup' : r.note.includes('NAME CLASH') ? 'review' : r.note.includes('NO CONSENT') ? 'consent' : r.note.includes('UNUSED') ? 'unused' : (r.basis === 'name' && r.old !== r.neu ? 'review' : '');
+  const action = r => r.note.includes('DUPLICATE') ? 'Delete (duplicate) – re-point first' : r.note.includes('NAME CLASH') ? 'Check name – different set-up, keep both' : r.note.includes('NO CONSENT') ? 'Rename + add consent condition (Phase 4)' : r.note.includes('UNUSED') ? 'Deleted (not used)' : (r.old !== r.neu ? 'Rename' : 'No change');
   function toCSV(rows) {
     const q = v => { v = S(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     const lines = [['Item', 'ID', 'Old name', 'New name', 'Vendor', 'Type', 'Changed', 'Named from', 'Note', 'Folder'].join(',')];

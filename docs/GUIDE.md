@@ -123,6 +123,8 @@ Each feature below says what it does, how it works, and shows an example.
 
 **Example:** `Meta - cHTML - AddToCart (2)` → "Duplicate of Meta - cHTML - AddToCart – re-point, then delete".
 
+**Same name, different set-up:** two items that would get the same name but are set up differently are never called duplicates. A word only one of them uses is added – a variable its code reads, or a property it reads. Example: `CJS - Product Page Product Id` (reads the dataLayer) and `CJS - Product Page Product ID - ProdId from URL` (falls back to the URL). If nothing tells them apart, the copy is numbered and marked "check the name, keep both".
+
 **Paused copies:** paused tags are never deleted or marked as duplicates – they are renamed to the format like everything else. When a paused tag has the same set-up as a live one, the **live** tag keeps the clean name and the paused one gets the same name with " - Paused" (GTM needs unique names). Triggers and variables used only by paused tags are treated the same way, with "Paused" before the consent ending. The trigger's name is never added to a tag name.
 
 **Example:** live `Criteo - cHTML - addToCart` and paused `Criteo - cHTML - addToCart - Paused`; triggers `Criteo - CE - Add To Cart - MKT` and `Criteo - CE - Add to cart - Paused - MKT`.

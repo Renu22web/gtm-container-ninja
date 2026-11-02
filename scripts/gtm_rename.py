@@ -685,7 +685,7 @@ def main():
 
     # ---- uniqueness per entity type
     rerun = bool(tags) and sum(1 for x in tags if STD_TAG.match(x['name'])) >= 0.6 * len(tags)  # file was already renamed once
-    def dedupe(items, extra_fn, orig=None, combine=None, same=None, rank=None):
+    def dedupe(items, extra_fn, orig=None, combine=None, same=None, rank=None, detail=None):
         """same: set-up key (true duplicates are only numbered); rank: 0 active, 1 paused (active keeps the clean name)"""
         rk = rank or (lambda k: 0)
         groups = collections.defaultdict(list)
@@ -711,13 +711,24 @@ def main():
                 e = extras[k]
                 if e and vals.count(e.lower()) == 1 and e.lower() not in items[k][0].lower():
                     items[k][0] = combine(k, e) if combine else f'{items[k][0]} - {e}'
-        final = collections.Counter(); first = {}
+            if detail and same:  # still the same name but set up differently: a word from the set-up tells them apart
+                sub = collections.defaultdict(list)
+                for k in ks: sub[items[k][0].lower()].append(k)
+                for kk in sub.values():
+                    if len(kk) < 2 or len({same(k) for k in kk}) < 2: continue
+                    det = {k: detail(k, kk) for k in kk}
+                    dl = [x.lower() for x in det.values()]
+                    for k in kk:
+                        e = det[k]
+                        if e and dl.count(e.lower()) == 1 and e.lower() not in items[k][0].lower():
+                            items[k][0] = combine(k, e) if combine else f'{items[k][0]} - {e}'
+        final = collections.Counter(); first = {}; first_k = {}
         used = {v[0].lower() for v in items.values()}
         order = sorted(items, key=lambda k: rk(k))  # stable: active items first, then paused copies
         for k in order:
             v = items[k]
             base = v[0]; final[base.lower()] += 1
-            if final[base.lower()] == 1: first[base.lower()] = base
+            if final[base.lower()] == 1: first[base.lower()] = base; first_k[base.lower()] = k
             elif rk(k):  # paused copy of a live item: kept, renamed to the format with ' - Paused'
                 pn = combine(k, 'Paused') if combine else f'{base} - Paused'
                 n2, i = pn, 1
@@ -726,7 +737,9 @@ def main():
                 v.append(f'PAUSED copy of live "{first[base.lower()]}" – renamed to the format and kept')
             else:
                 v[0] = f'{base} ({final[base.lower()]})'
-                v.append(f'DUPLICATE of "{first[base.lower()]}" – re-point anything using it, then delete')
+                if same and same(k) != same(first_k[base.lower()]):  # different set-up: not a duplicate
+                    v.append(f'NAME CLASH with "{first[base.lower()]}" – different set-up, keep both and check the name')
+                else: v.append(f'DUPLICATE of "{first[base.lower()]}" – re-point anything using it, then delete')
         return items
     if a.overrides:
         ov = {(r['Item'].strip().lower(), r['Old name'].strip()): r['New name'].strip() for r in csv.DictReader(open(a.overrides, encoding='utf-8')) if r.get('New name')}
@@ -863,7 +876,31 @@ def main():
                                  *[ref_names(x) for x in trigs if trig_rank(str(x['triggerId']))]))
     old_var = {x['variableId']: x['name'] for x in vars_}
     var_rank = lambda k: 1 if old_var[k] in paused_v and old_var[k] not in live_v else 0  # used only by paused tags
-    dedupe(new_var, lambda k: new_var[k][2], {x['variableId']: x['name'] for x in vars_}, None, None, var_rank)
+    var_by_id = {x['variableId']: x for x in vars_}
+    JS_WORDS = {'function', 'return', 'var', 'let', 'const', 'true', 'false', 'null', 'undefined', 'typeof', 'catch', 'try', 'else', 'window',
+                'document', 'this', 'new', 'length', 'indexOf', 'split', 'join', 'push', 'toString', 'toLowerCase', 'toUpperCase', 'replace', 'match'}
+    STR_RX = re.compile(r"'(?:\\.|[^'\\])*'" + '|' + r'"(?:\\.|[^"\\])*"')
+    def js_code(k):  # Custom JavaScript without comments, string contents and {{variable}} references
+        c = re.sub(r'/\*.*?\*/|//[^\n]*', '', str(params(var_by_id[k]).get('javascript', '')), flags=re.S)
+        return re.sub(r'\{\{[^{}]+\}\}', ' ', STR_RX.sub("''", c))
+    def js_refs(k):  # variables the code reads, without their type prefix ('RT - ProdId from URL' -> 'ProdId from URL')
+        return [norm(strip_prefix(r, VAR_PREFIX)) for r in dict.fromkeys(re.findall(r'\{\{([^{}]+)\}\}', str(params(var_by_id[k]).get('javascript', ''))))]
+    def js_tokens(k):
+        c = js_code(k)
+        local = set(re.findall(r'\b(?:var|let|const|function)\s+([A-Za-z_$][\w$]*)', c)) | set(re.findall(r'\bcatch\s*\(\s*([A-Za-z_$][\w$]*)', c))
+        return [t for t in dict.fromkeys(re.findall(r'[A-Za-z_$][\w$]{3,}', c)) if t not in JS_WORDS and t not in local]
+    def var_detail(k, group):  # what only this variable's code uses: a variable it reads, else a property it reads, else a name in its code
+        if var_by_id[k].get('type') != 'jsm': return ''
+        oth = [j for j in group if j != k and var_by_id[j].get('type') == 'jsm']
+        o_refs = {r.lower() for j in oth for r in js_refs(j)}
+        refs = [r for r in js_refs(k) if r.lower() not in o_refs]
+        if refs: return refs[0]
+        o_tok = {t for j in oth for t in js_tokens(j)}
+        uniq = [t for t in js_tokens(k) if t not in o_tok]
+        c = js_code(k)
+        props = [t for t in uniq if re.search(r'(?<!window)\.' + re.escape(t) + r'\b', c)]
+        return (props or uniq or [''])[0]
+    dedupe(new_var, lambda k: new_var[k][2], {x['variableId']: x['name'] for x in vars_}, None, lambda k: fps['variable'][k], var_rank, var_detail)
     builtin = {b.get('name', '').lower() for b in cv.get('builtInVariable', []) or []}
     for items in (new_tag, new_trig, new_var):
         for v in items.values(): v[0] = safe_name(v[0])
@@ -1027,6 +1064,7 @@ def write_xlsx(path, cv, base, rows, refs, seq, made_folders, vendors, fixes=())
     HEAD = PatternFill('solid', fgColor='1F3A5F'); HF = Font(bold=True, color='FFFFFF'); B = Font(bold=True)
     def action(r):
         if 'DUPLICATE' in r[7]: return 'Delete (duplicate) – re-point first'
+        if 'NAME CLASH' in r[7]: return 'Check name – different set-up, keep both'
         if 'NO CONSENT' in r[7]: return 'Rename + add consent condition (Phase 4)'
         if 'UNUSED' in r[7]: return 'Deleted (not used)'
         return 'Rename' if r[2] != r[3] else 'No change'
