@@ -91,6 +91,13 @@ button:hover{border-color:var(--muted)}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 button.primary:hover{filter:brightness(1.07)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.paste{flex-basis:100%;font-size:13px;color:var(--muted)}
+.paste summary{cursor:pointer}
+.paste textarea{display:block;width:100%;margin:8px 0;font:12px/1.4 var(--f-mono);padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+
 button:disabled{opacity:.5;cursor:not-allowed}
 .banner{display:flex;gap:10px;align-items:center;font-size:14px;padding:10px 14px;border-radius:var(--r);background:var(--soft);color:var(--muted)}
 .banner b{color:var(--ink)}
@@ -172,10 +179,11 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
 
   <section class="panel load" aria-label="Load a container">
     <div class="drop" id="drop">
-      <button class="primary" id="pick">Choose export (.json)</button>
-      <input type="file" id="file" accept=".json,application/json" hidden>
+      <label class="btn primary" id="pick" for="file" role="button" tabindex="0">Choose export (.json)</label>
+      <input type="file" id="file" accept=".json,application/json" class="visually-hidden">
       <p><strong>or drop the file here.</strong> GTM → Admin → Export Container.</p>
       <button id="sample">Load sample</button>
+      <details class="paste" id="pasteBox"><summary>File picker not opening? Paste the JSON instead</summary><textarea id="pasteTxt" rows="5" placeholder="Open the export in a text editor, copy everything (Ctrl/Cmd+A, Ctrl/Cmd+C) and paste it here" aria-label="Paste container JSON"></textarea><button class="primary" id="pasteLoad">Load pasted JSON</button></details>
     </div>
     <div class="opts">
       <label class="check"><input type="checkbox" id="folders"> Put each vendor in its own folder</label>
@@ -1302,7 +1310,8 @@ function setShow(show, kind) {
   state.show = show; $('show').value = show; if (kind) { state.kind = kind; for (const b of $('kindSeg').children) b.setAttribute('aria-pressed', b.dataset.k === kind); }
   state.limit = 300; render();
 }
-$('pick').onclick = () => $('file').click();
+$('pick').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } };
+$('pasteLoad').onclick = () => { const t = $('pasteTxt').value.trim(); if (!t) return; load(t, 'pasted-container.json', false); };
 $('file').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(t => load(t, f.name, false)); e.target.value = ''; };
 $('sample').onclick = () => load(SAMPLE, 'sample_container.json', true);
 const drop = $('drop');
