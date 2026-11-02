@@ -680,7 +680,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
     'Video Visible', 'Video Status', 'Video Current Time', 'Scroll Depth Threshold', 'Scroll Depth Units', 'Scroll Direction', 'Percent Visible',
     'On-Screen Duration', 'Client Name', 'Event Name', 'Query String', 'Request Method', 'Request Path', 'Server Container ID', 'Server Container URL']);
   const BUILTIN_TRIGGER_IDS = new Set(['2147479553', '2147479572', '2147479573']);
-  const safeName = s => String(s).replace(/[{}]/g, '').replace(/[\r\n]/g, ' ').replace(/\s{2,}/g, ' ').trim() || 'Unnamed';
+  const safeName = s => String(s).replace(/[{}\\]/g, '').replace(/[\r\n]/g, ' ').replace(/\s{2,}/g, ' ').trim() || 'Unnamed';
   function pyDumps(v, ind) {  // same text as Python json.dumps(indent=2, ensure_ascii=False)
     ind = ind || '';
     const n = ind + '  ';

@@ -199,7 +199,7 @@ A vendor that is not in the built-in list still follows every rule: its tags are
 - Tag Sequencing references (`setupTag` / `teardownTag` tag names) are updated.
 - Names are unique per item type; clashes are numbered and highlighted red as duplicates to delete.
 - Nothing is replaced or merged. Duplicates and missing consent conditions are only reported. Without `--cleanup` nothing is deleted, so the import changes names alone; with `--cleanup` only the triggers and variables listed in *Deleted – not used* are removed.
-- The file is import-safe: hidden template fields GTM rejects are removed (with the matching tag values, and the template's Gallery link, whose signature no longer matches), names never contain `{` `}` or line breaks, a variable never takes the name of a built-in variable, and anything else GTM may refuse is listed in the Import check.
+- The file is import-safe: hidden template fields GTM rejects are removed (with the matching tag values, and the template's Gallery link, whose signature no longer matches), names never contain `{` `}`, a backslash `\` (GTM: "The name contains invalid character") or line breaks, a variable never takes the name of a built-in variable, and anything else GTM may refuse is listed in the Import check.
 - Running the script again on its own output changes nothing that is already standard.
 
 ## Testing the renamed file
@@ -710,8 +710,8 @@ BUILTIN_TRIGGER_IDS = {'2147479553', '2147479572', '2147479573'}  # All Pages, C
 TD_SECTION = re.compile(r'(___TEMPLATE_PARAMETERS___\n\n)(.*?)(?=\n\n___\w+___|\Z)', re.S)
 
 def safe_name(s):
-    """GTM-safe name: no {{ }} (would read as a variable reference), no line breaks, single spaces"""
-    s = re.sub(r'[{}]', '', str(s)).replace('\r', ' ').replace('\n', ' ')
+    """GTM-safe name: no {{ }} (would read as a variable reference), no backslash (GTM: "invalid character"), no line breaks, single spaces"""
+    s = re.sub(r'[{}\\]', '', str(s)).replace('\r', ' ').replace('\n', ' ')
     return re.sub(r'\s{2,}', ' ', s).strip() or 'Unnamed'
 
 def import_check(cv):

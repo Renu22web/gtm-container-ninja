@@ -478,8 +478,8 @@ BUILTIN_TRIGGER_IDS = {'2147479553', '2147479572', '2147479573'}  # All Pages, C
 TD_SECTION = re.compile(r'(___TEMPLATE_PARAMETERS___\n\n)(.*?)(?=\n\n___\w+___|\Z)', re.S)
 
 def safe_name(s):
-    """GTM-safe name: no {{ }} (would read as a variable reference), no line breaks, single spaces"""
-    s = re.sub(r'[{}]', '', str(s)).replace('\r', ' ').replace('\n', ' ')
+    """GTM-safe name: no {{ }} (would read as a variable reference), no backslash (GTM: "invalid character"), no line breaks, single spaces"""
+    s = re.sub(r'[{}\\]', '', str(s)).replace('\r', ' ').replace('\n', ' ')
     return re.sub(r'\s{2,}', ' ', s).strip() or 'Unnamed'
 
 def import_check(cv):
