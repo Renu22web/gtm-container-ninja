@@ -39,7 +39,7 @@ The page exports the same files (Brand library, My vendors, Team rules, Fix list
    - **Find & replace**, **History** (undo/redo of every name change), **Name score** (share of names in the format, before/after, minus duplicates and missing consent), **Compare brands** (load other exports: vendors and tag actions per brand, what differs, CSV) and **Test after import** (journey test plan per step – home, category, product, add to cart, basket, checkout, purchase – as JSON/CSV for the GTM journey-tester skill).
 5. **Review before handing over.** Open `<name>_summary.xlsx` (sheets: Summary, Rename Map, Duplicates – delete, No consent condition, Deleted – not used (with `--cleanup`), Import check) and check:
    - **Import check sheet:** every run also makes the file safe to import. *Fixed* rows are problems GTM would refuse that the script repaired (today: hidden fields in old Gallery templates such as Snap Pixel, which cause "Hidden parameters are not allowed"; a template that had to be edited also loses its Gallery link, because GTM rejects a changed Gallery template with "This field is invalid (or unsupported)" on `galleryReference` – it imports as a custom template). *Check* rows need a person: a tag pointing to a trigger that is missing, a `{{variable}}` that does not exist in the container, or two items with the same name. If a *Fixed* row says the template code reads the removed field, update that template from the Gallery before publishing. A template with no code (GTM error "template_data: Missing section ___INFO___") cannot be repaired from the file – export the container again from GTM so the template code is included.
-   - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep. **Paused tags are never deleted or flagged:** when a paused item has the same set-up as a live one, the **live** item keeps the clean name and the paused one gets the same formatted name with ` - Paused` (`Criteo - cHTML - addToCart - Paused`; for a trigger before the consent ending: `Criteo - CE - Add to cart - Paused - MKT`), note "PAUSED copy of live …", Action "Rename"; a trigger used only by paused tags counts as paused. Live copies with the same code and the same firing conditions are only numbered – the trigger's name is never added to a tag name to tell them apart, and trigger words an earlier run added to tag names are removed on a re-run.
+   - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep. **Paused tags are never deleted or flagged:** when a paused item has the same set-up as a live one, the **live** item keeps the clean name and the paused one gets the same formatted name with ` - Paused` (`Criteo - cHTML - addToCart - Paused`; for a trigger before the consent ending: `Criteo - CE - Add to cart - Paused - MKT`), note "PAUSED copy of live …", Action "Rename"; a trigger or variable used only by paused tags counts as paused (), so a live item never gets the . Live copies with the same code and the same firing conditions are only numbered – the trigger's name is never added to a tag name to tell them apart, and trigger words an earlier run added to tag names are removed on a re-run.
    - **amber rows – no consent condition:** triggers whose old name implied a consent gate ("OT Marketing …", "OT Performance …", "OT - …") but whose conditions test no consent variable. They are renamed to the standard format like every other trigger – no "OT", no "Marketing", no consent ending – and the Action says to add the consent condition later (roadmap Phase 4).
    - **grey rows – deleted, not used** (only with `--cleanup`): triggers and variables removed because nothing in use depends on them. Check the list before importing.
    - **blue rows – named from the old name only** (no config signal): make sure the name still says what the item does.
@@ -1076,7 +1076,22 @@ def main():
             return re.sub(r'\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)', '', NUM_SUFFIX.sub('', re.sub(r'^[^-]+ - ', '', new_trig[str(f)][0])).strip())
         return new_tag[k][2]
     dedupe(new_tag, tag_extra, {x['tagId']: std_tag_name(x['name']) for x in tags}, None, lambda k: fps['tag'][k], lambda k: 1 if paused_tag.get(k) else 0)
-    dedupe(new_var, lambda k: new_var[k][2], {x['variableId']: x['name'] for x in vars_})
+    ref_names = lambda o: {m for s_ in all_strings(o) for m in re.findall(r'\{\{([^{}]+)\}\}', s_)}
+    vref = {vr['name']: ref_names(vr) for vr in vars_}
+    def reach(seed):  # variables reached from these items, also through other variables
+        got = set(seed); todo = list(got)
+        while todo:
+            for m in vref.get(todo.pop(), ()):
+                if m not in got: got.add(m); todo.append(m)
+        return got
+    live_v = reach(set().union(*[ref_names(x) for x in tags if not paused_tag.get(x['tagId'])],
+                               *[ref_names(x) for x in trigs if not trig_rank(str(x['triggerId']))],
+                               *[ref_names(cv.get(k_, []) or []) for k_ in ('client', 'transformation', 'zone')]))
+    paused_v = reach(set().union(*[ref_names(x) for x in tags if paused_tag.get(x['tagId'])],
+                                 *[ref_names(x) for x in trigs if trig_rank(str(x['triggerId']))]))
+    old_var = {x['variableId']: x['name'] for x in vars_}
+    var_rank = lambda k: 1 if old_var[k] in paused_v and old_var[k] not in live_v else 0  # used only by paused tags
+    dedupe(new_var, lambda k: new_var[k][2], {x['variableId']: x['name'] for x in vars_}, None, None, var_rank)
     builtin = {b.get('name', '').lower() for b in cv.get('builtInVariable', []) or []}
     for items in (new_tag, new_trig, new_var):
         for v in items.values(): v[0] = safe_name(v[0])

@@ -848,7 +848,22 @@ def main():
             return re.sub(r'\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)', '', NUM_SUFFIX.sub('', re.sub(r'^[^-]+ - ', '', new_trig[str(f)][0])).strip())
         return new_tag[k][2]
     dedupe(new_tag, tag_extra, {x['tagId']: std_tag_name(x['name']) for x in tags}, None, lambda k: fps['tag'][k], lambda k: 1 if paused_tag.get(k) else 0)
-    dedupe(new_var, lambda k: new_var[k][2], {x['variableId']: x['name'] for x in vars_})
+    ref_names = lambda o: {m for s_ in all_strings(o) for m in re.findall(r'\{\{([^{}]+)\}\}', s_)}
+    vref = {vr['name']: ref_names(vr) for vr in vars_}
+    def reach(seed):  # variables reached from these items, also through other variables
+        got = set(seed); todo = list(got)
+        while todo:
+            for m in vref.get(todo.pop(), ()):
+                if m not in got: got.add(m); todo.append(m)
+        return got
+    live_v = reach(set().union(*[ref_names(x) for x in tags if not paused_tag.get(x['tagId'])],
+                               *[ref_names(x) for x in trigs if not trig_rank(str(x['triggerId']))],
+                               *[ref_names(cv.get(k_, []) or []) for k_ in ('client', 'transformation', 'zone')]))
+    paused_v = reach(set().union(*[ref_names(x) for x in tags if paused_tag.get(x['tagId'])],
+                                 *[ref_names(x) for x in trigs if trig_rank(str(x['triggerId']))]))
+    old_var = {x['variableId']: x['name'] for x in vars_}
+    var_rank = lambda k: 1 if old_var[k] in paused_v and old_var[k] not in live_v else 0  # used only by paused tags
+    dedupe(new_var, lambda k: new_var[k][2], {x['variableId']: x['name'] for x in vars_}, None, None, var_rank)
     builtin = {b.get('name', '').lower() for b in cv.get('builtInVariable', []) or []}
     for items in (new_tag, new_trig, new_var):
         for v in items.values(): v[0] = safe_name(v[0])

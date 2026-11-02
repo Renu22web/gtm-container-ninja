@@ -1153,7 +1153,16 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
       if (f && newTrig.has(S(f))) return newTrig.get(S(f))[0].replace(/^[^-]+ - /, '').replace(NUM_SUFFIX, '').trim().replace(/\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)/g, '');
       return newTag.get(k)[2];
     }, new Map(tags.map(x => [x.tagId, stdTagName(x.name)])), null, k => fps.tag.get(k), k => pausedTag.get(k) ? 1 : 0);
-    dedupe(newVar, k => newVar.get(k)[2], new Map(vars.map(x => [x.variableId, x.name])));
+    const refNames = o => { const out = new Set(); for (const s_ of allStrings(o)) for (const m of s_.matchAll(/\{\{([^{}]+)\}\}/g)) out.add(m[1]); return out; };
+    const vref = new Map(vars.map(v => [v.name, refNames(v)]));
+    const reach = seed => { const got = new Set(seed), todo = [...got]; while (todo.length) for (const m of vref.get(todo.pop()) || []) if (!got.has(m)) { got.add(m); todo.push(m); } return got; };
+    const union = arr => { const u = new Set(); for (const x of arr) for (const y of x) u.add(y); return u; };
+    const liveV = reach(union([...tags.filter(x => !pausedTag.get(x.tagId)).map(refNames), ...trigs.filter(x => !trigRank(S(x.triggerId))).map(refNames),
+                               ...['client', 'transformation', 'zone'].map(k_ => refNames(cv[k_] || []))]));
+    const pausedV = reach(union([...tags.filter(x => pausedTag.get(x.tagId)).map(refNames), ...trigs.filter(x => trigRank(S(x.triggerId))).map(refNames)]));
+    const oldVar = new Map(vars.map(x => [x.variableId, x.name]));
+    const varRank = k => (pausedV.has(oldVar.get(k)) && !liveV.has(oldVar.get(k))) ? 1 : 0;  // used only by paused tags
+    dedupe(newVar, k => newVar.get(k)[2], new Map(vars.map(x => [x.variableId, x.name])), null, null, varRank);
     const builtin = new Set((cv.builtInVariable || []).map(b => (b.name || '').toLowerCase()));
     for (const items of [newTag, newTrig, newVar]) for (const v of items.values()) v[0] = safeName(v[0]);
     for (const v of newVar.values()) if (builtin.has(v[0].toLowerCase())) v[0] += ' - Custom';

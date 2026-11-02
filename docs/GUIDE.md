@@ -123,7 +123,7 @@ Each feature below says what it does, how it works, and shows an example.
 
 **Example:** `Meta - cHTML - AddToCart (2)` → "Duplicate of Meta - cHTML - AddToCart – re-point, then delete".
 
-**Paused copies:** paused tags are never deleted or marked as duplicates – they are renamed to the format like everything else. When a paused tag has the same set-up as a live one, the **live** tag keeps the clean name and the paused one gets the same name with " - Paused" (GTM needs unique names). Triggers used only by paused tags are treated the same way, with "Paused" before the consent ending. The trigger's name is never added to a tag name.
+**Paused copies:** paused tags are never deleted or marked as duplicates – they are renamed to the format like everything else. When a paused tag has the same set-up as a live one, the **live** tag keeps the clean name and the paused one gets the same name with " - Paused" (GTM needs unique names). Triggers and variables used only by paused tags are treated the same way, with "Paused" before the consent ending. The trigger's name is never added to a tag name.
 
 **Example:** live `Criteo - cHTML - addToCart` and paused `Criteo - cHTML - addToCart - Paused`; triggers `Criteo - CE - Add To Cart - MKT` and `Criteo - CE - Add to cart - Paused - MKT`.
 
