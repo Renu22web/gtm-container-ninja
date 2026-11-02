@@ -2,6 +2,15 @@
 
 GTM Container Ninja gives every tag, trigger and variable in our Google Tag Manager containers a clear, standard name, the same across every brand, without changing what the tracking does.
 
+## Links
+
+| What | Link |
+| --- | --- |
+| Web page (GTM Container Ninja) | [Open the web page](https://claude.ai/code/artifact/T4cv7tG4prMip4eTLo42ds) (or [`web/index.html`](../web/index.html) in this repo) |
+| Skill file (SKILL.md) | [Download the skill](../SKILL.md) |
+
+**To add the skill in Claude:** download the file, attach it in a Claude chat and ask Claude to "save this as a skill". Then confirm on the card that appears.
+
 ## 1. Why we created this skill
 
 Our GTM containers grew over many years. Many people and agencies added tags, each naming them their own way. When we audited the brand containers, we found the same problems again and again:
@@ -31,7 +40,7 @@ How it works, in 5 steps:
 2. **Give the file** to Claude with the skill, or open it in the web page.
 3. **The tool reads every item** and works out what it does from its settings: vendor, event, page, consent.
 4. **It renames everything** to the standard format and updates every place a name is used.
-5. **You get back** a renamed file, a rename-in-place script, and an Excel report of every change.
+5. **You get back** a renamed file to import into a test workspace, and an Excel report of every change.
 
 ## 3. The naming format
 
@@ -66,6 +75,8 @@ Examples: `DLV - ecommerce.value` (data layer value) · `COOKIE - _dyid` · `URL
 
 ## 4. Core features
 
+Each feature below says what it does, how it works, and shows an example.
+
 ### 4.1 Smart naming from settings
 
 **What:** names come from what the item actually does, not just its old label.
@@ -91,6 +102,8 @@ Examples: `DLV - ecommerce.value` (data layer value) · `COOKIE - _dyid` · `URL
 **Example:** `PV - All Pages - for GA4`, used by GA4, Meta and TikTok → `PV - All Pages`.
 
 ### 4.4 No repeated words
+
+**What:** nothing is said twice in a name.
 
 **Example:** `WL - DY - All pages except PDP - Dynamic Yield` → `Dynamic Yield - WL - All pages except PDP`.
 
@@ -120,6 +133,8 @@ Examples: `DLV - ecommerce.value` (data layer value) · `COOKIE - _dyid` · `URL
 
 ### 4.8 One folder per vendor (optional)
 
+**What:** sorts every item into a folder.
+
 | Folder | What goes in |
 | --- | --- |
 | Vendor name (Meta, GA4…) | That vendor's tags, and triggers/variables only they use |
@@ -135,21 +150,17 @@ Examples: `DLV - ecommerce.value` (data layer value) · `COOKIE - _dyid` · `URL
 
 ### 4.10 Import check
 
-**What:** makes sure GTM will accept the file. It fixes known import errors (such as hidden fields in old Gallery templates) and lists anything a person must check, like a tag pointing to a missing trigger.
+**What:** makes sure GTM will accept the file.
+
+**How:** it fixes known import errors (such as hidden fields in old Gallery templates) and lists anything a person must check, like a tag pointing to a missing trigger.
 
 ### 4.11 Safe to run again
 
-Running it on an already-renamed container changes nothing that's already correct. Only new or non-standard items are renamed, so you can re-run whenever new tags are added.
-
-### 4.12 Rename in place (shows "Modified" in GTM)
-
-**What:** a Google Apps Script that applies the renames directly in a GTM workspace through the Tag Manager API.
-
-**Why:** GTM's Import matches items by **name**, so an imported renamed file shows renamed items as Deleted + Added. Renaming in place keeps each item and shows it as **Modified**; unused items show as **Deleted**.
-
-**How:** `scripts/gen_apps_script.py` builds the script from the original export and the renamed file. See section 8.
+**What:** running it on an already-renamed container changes nothing that's already correct. Only new or non-standard items are renamed, so you can re-run whenever new tags are added.
 
 ## 5. Standardising across brands
+
+Our brands run similar set-ups, but not every brand has every tag, and new tags keep arriving. These features keep every brand named the same way.
 
 ### 5.1 Brand library
 
@@ -166,11 +177,15 @@ Running it on an already-renamed container changes nothing that's already correc
 
 ### 5.2 New vendors
 
-Add them once to `vendors.csv`: the vendor name plus words that identify it in tag names or code. Without the list, the first part of the old name is used as the vendor.
+**What:** vendors the tool doesn't know still follow the format.
 
-**Example:** `Power Reviews` = "powerreviews, ui.powerreviews.com". A tag "Reviews widget - PDP" whose code loads ui.powerreviews.com → `Power Reviews - cHTML - Reviews widget - PDP`.
+**How:** add them once to a vendor list (`vendors.csv`): the vendor name plus words that identify it in tag names or code. Without the list, the first part of the old name is used as the vendor.
 
-### 5.3 Team rules (`naming_rules.json`)
+**Example:** list entry `Power Reviews` = "powerreviews, ui.powerreviews.com". A tag called "Reviews widget - PDP" whose code loads ui.powerreviews.com → `Power Reviews - cHTML - Reviews widget - PDP`.
+
+### 5.3 Team rules
+
+**What:** the team can adjust a few settings once for everyone (`naming_rules.json`).
 
 | Setting | Default | Example change |
 | --- | --- | --- |
@@ -180,27 +195,29 @@ Add them once to `vendors.csv`: the vendor name plus words that identify it in t
 
 ### 5.4 Fix list (names you choose)
 
-Add the item to the Fix list (search, the + button, or drag a row), type the new name, then export the list. The skill reads it as an overrides file: `Item, Old name, New name`. Names you set always win over the library and the rules.
+**What:** if you don't like a name, set your own. It is kept on every future run.
+
+**How:** add the item to the Fix list (search, the + button, or drag a row), type the new name, then export the list. The skill reads it as an overrides file: `Item, Old name, New name`. Names you set always win over the library and the rules.
+
+**Example:** `Tag, Listrak - cHTML - Signup, Listrak - cHTML - Email Signup` → this tag is always named "Listrak - cHTML - Email Signup", and the library learns it for other brands.
 
 ## 6. The web page
 
-The same rules run in a web page (`web/index.html`). The file stays in your browser; nothing is uploaded.
+The same rules also run in a web page, for people who prefer clicking to chatting. The file stays in your browser; nothing is uploaded. Settings, vendors, team rules and the brand library can be shared with the team on the page.
 
-| Feature | What it does |
-| --- | --- |
-| Table with Folder column | Old name, new name, vendor, folder for every item |
-| Details | Click a name to see conditions, variables, which tags use it |
-| Select & export | Tick items like in GTM and export only those, with everything they need |
-| Find & replace | Change a word in many names at once |
-| History | Undo / redo every name change |
-| Name score | Share of names in the format, before and after |
-| Compare brands | Load other brands' exports and see what differs |
-| Test after import | A test plan for each journey step |
-| Brand library | Save this brand's names; reuse them for the next |
+| Feature | What it does | Example |
+| --- | --- | --- |
+| Table with Folder column | Old name, new name, vendor, folder for every item | Filter to see only Meta items |
+| Details | Click a name to see what it does: conditions, variables, which tags use it | Click a trigger → see the 3 tags that fire on it |
+| Select & export | Tick items like in GTM and export only those, with everything they need | Export just the 12 Meta tags and their triggers |
+| Find & replace | Change a word in many names at once | Replace "Checkout" with "Basket" everywhere |
+| History | Undo / redo every name change | Undo a find & replace |
+| Name score | Share of names in the format, before and after | 38% → 97% |
+| Compare brands | Load other brands' exports and see what differs | Brand B has no TikTok tags |
+| Test after import | A test plan for each journey step | "Add to cart: expect Meta AddToCart, GA4 add_to_cart" |
+| Brand library | Save this brand's names; reuse them for the next | "Save this brand's names to the library" |
 
-**Partial export:** import with **Merge → Overwrite conflicting**. Never use Overwrite for a partial file; it deletes everything not in the file.
-
-**Team sharing:** when opened as the Claude artifact, settings and the brand library can be shared with the team. Opened as a plain HTML file, everything stays in that browser.
+**Importing a partial export:** when you export only selected items, import them in GTM with **Merge → Overwrite conflicting**. Never use Overwrite for a partial file; it would delete everything not in the file.
 
 ## 7. What you get back
 
@@ -208,9 +225,10 @@ The same rules run in a web page (`web/index.html`). The file stays in your brow
 | --- | --- |
 | Excel summary (.xlsx) | Every old and new name, folder, vendor and action, colour-coded |
 | Renamed container (.json) | Import into a GTM test workspace |
-| Rename-in-place script (.gs) | Apply the renames in a GTM workspace so they show as Modified |
 | Rename map (.csv) | The same changes as a plain list |
 | Brand library (.json) | Agreed names to use for the next brand |
+
+The Excel colour key:
 
 | Colour | Meaning | What to do |
 | --- | --- | --- |
@@ -219,52 +237,67 @@ The same rules run in a web page (`web/index.html`). The file stays in your brow
 | Blue | Named from the old name only | Quick check that the name is right |
 | Grey | Removed as unused (clean-up only) | Check the list before importing |
 
+The Excel file also has an **Import check** sheet listing anything GTM might refuse and what was fixed.
+
 ## 8. How to use it
 
 ### Rename a container
 
 1. In GTM: **Admin → Export Container**, choose the workspace, download the JSON file.
 2. In Claude: attach the file and ask, for example, "Rename this container with GTM Container Ninja, use folders and clean up unused items."
-3. Also attach any shared files: `brand_library.json`, `vendors.csv`, `naming_rules.json`, and the brand's overrides file.
+3. Also attach any shared files you have: `brand_library.json`, `vendors.csv`, `naming_rules.json`, and the brand's overrides file.
 4. Review the Excel report: red, amber and blue rows first.
 5. Not happy with a name? Add it to the overrides / Fix list and run again.
 6. Keep the new `brand_library.json` for the next brand.
 
-Command line:
+### Test safely
 
-```bash
-python3 scripts/gtm_rename.py GTM-XXXX_workspace12.json --out out --folders --cleanup \
-  --library brand_library.json --vendors examples/vendors.csv --rules examples/naming_rules.json
-```
+GTM's **Import Container** matches items by **name**. So when you import the renamed file, renamed items show as **Deleted + Added**, even though nothing else changed. To see them as **Modified**, rename them in place with the script below.
 
-### Apply the changes so they show as "Modified" (recommended)
+**Option A – rename in place (shows "Modified"):**
 
-1. Build the script: `python3 scripts/gen_apps_script.py GTM-XXXX_workspace12.json out/GTM-XXXX_workspace12_renamed.json rename.gs --folders`
+1. Build the script: `python3 scripts/gen_apps_script.py <original export>.json <renamed file>.json rename.gs --folders`
 2. In GTM, create a **new workspace**; note the number after `/workspaces/` in the address bar.
 3. script.google.com → New project → paste `rename.gs` → set `WORKSPACE_ID` → Services → add **Tag Manager API**.
 4. Run `run` with `DRY_RUN = true` and read the log. Then set `DRY_RUN = false` and run again; repeat if it says "Time limit reached" until "ALL DONE".
-5. Renamed items show as **Modified**, unused ones as **Deleted**. Nothing is published.
+5. Renamed items show as **Modified**, removed ones as **Deleted**. Nothing is published.
 
-### Or import the renamed file
+**Option B – import the renamed file:**
 
-GTM → Admin → **Import Container** → renamed file → **New workspace** + **Overwrite**. Renamed items appear as **Deleted + Added**, because Import matches by name. The end result is the same.
+1. In GTM: **Admin → Import Container** → choose the renamed file.
+2. Choose **New workspace** and **Overwrite**. The live container is not touched.
+3. Renamed items show as **Deleted + Added** (Import matches by name); removed ones as **Deleted**. The end result is the same container with new names.
 
-### Test safely
+**Then, for both:**
 
 1. Use **Preview** to walk the journey: home, category, product, add to cart, basket, checkout, purchase. The same tags must fire as before.
 2. Publish only after sign-off. GTM keeps the previous version for rollback.
 
 ## 9. Benefits, safety and FAQ
 
-**Benefits:** faster work, fewer mistakes, cleaner data (duplicates found), consent gaps visible, one standard across brands, easy audits and handovers.
+### Benefits
 
-**Safety:** only names (and folders, if asked) change. Nothing is deleted unless clean-up is on, and every removed item is listed. Duplicates and consent gaps are only reported. Everything is tested in a separate workspace first.
+- **Faster work:** find the right tag in seconds
+- **Fewer mistakes:** clear names make it hard to edit or pause the wrong tag
+- **Cleaner data:** duplicate tags that double-count are found
+- **Privacy:** consent gaps are made visible
+- **One standard:** anyone can work on any brand container
+- **Easy audits and handovers:** the Excel report is a ready record
+
+### Safety guarantees
+
+- Only names (and folders, if asked) change. IDs, triggers, settings and code stay the same.
+- Nothing is deleted unless clean-up is switched on, and every removed item is listed.
+- Duplicates and consent gaps are only reported, never changed automatically.
+- Everything is tested in a separate workspace first; rollback is instant.
+
+### FAQ
 
 - **Will our reports or data change?** No. Tags send the same data; only labels change.
-- **Server-side containers?** Yes, browser and server containers.
-- **New tags later?** Run it again. Only new or non-standard items change.
-- **Different name wanted?** Use the Fix list / overrides. It sticks on every run.
-- **Unknown vendor?** Add it to `vendors.csv`, or the first part of the old name is used.
+- **Does it work on server-side containers?** Yes, browser and server containers.
+- **What if we add new tags later?** Run it again. Only new or non-standard items change.
+- **Can we use a different name?** Yes, through the Fix list / overrides. It sticks on every run.
+- **What about a vendor it doesn't know?** Add it to the vendor list, or it uses the first part of the old name.
 
 ## 10. Glossary of short codes
 
@@ -272,9 +305,11 @@ GTM → Admin → **Import Container** → renamed file → **New workspace** + 
 | --- | --- |
 | cHTML | Custom HTML tag (custom code) |
 | Template | Tag or variable built from a GTM template |
-| PV / DOM / WL | Page view / DOM ready / window loaded trigger |
+| PV | Page view trigger |
+| DOM | DOM ready trigger |
+| WL | Window loaded (page fully loaded) trigger |
 | CE | Custom event trigger |
-| CLICK / LINK | Click / link click trigger |
+| CLICK / LINK | Click trigger / link click trigger |
 | VIS | Element visibility trigger |
 | TG | Trigger group |
 | Exclude | Trigger used only to block tags |
@@ -287,3 +322,4 @@ GTM → Admin → **Import Container** → renamed file → **New workspace** + 
 | URL | URL variable |
 | LT / RT | Lookup table / RegEx table variable |
 | JSV | JavaScript variable |
+| DOM (variable) | DOM element variable |
