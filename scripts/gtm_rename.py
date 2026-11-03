@@ -680,7 +680,8 @@ def main():
         act = norm(act)
         if t in ('flc', 'fls') and not old and STD_TAG.match(tg['name']): act = ''
         act = strip_words(re.sub(r'\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)', '', act).strip(' -'))   # consent endings live on triggers only
-        typ = RULES['labels']['template'] if t.startswith('cvt_') or t == 'awct' else TAG_TYPE_SHORT.get(t, 'Tag')
+        typ = 'Pixel' if t.startswith('cvt_') and re.search(r'\bpixel\b', tmpl_name(t), re.I) else \
+            RULES['labels']['template'] if t.startswith('cvt_') or t == 'awct' else TAG_TYPE_SHORT.get(t, 'Tag')  # a pixel template (Snap Pixel) is a Pixel
         if v == 'Utility':  # no vendor found: the old name's first part is the vendor ('Hearst - cHTML - Add To Cart')
             first, _, more = act.partition(' - ')
             name = (f'{first} - {typ} - {more}' if more else f'{act} - {typ}') if act else typ

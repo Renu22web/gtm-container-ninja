@@ -980,7 +980,7 @@ ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;m
       act = norm(act);
       if (['flc', 'fls'].includes(t) && !old && STD_TAG.test(tg.name)) act = '';
       act = stripWords(stripCharsX(act.replace(/\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)/g, ''), ' -'));  // consent endings live on triggers only
-      const typ = t.startsWith('cvt_') || t === 'awct' ? RULES.labels.template : (TAG_TYPE_SHORT[t] || 'Tag');
+      const typ = t.startsWith('cvt_') && /\bpixel\b/i.test(tmplName(t)) ? 'Pixel' : t.startsWith('cvt_') || t === 'awct' ? RULES.labels.template : (TAG_TYPE_SHORT[t] || 'Tag');  // a pixel template (Snap Pixel) is a Pixel
       let name;
       if (v === 'Utility') {  // no vendor found: the old name's first part is the vendor
         const i = act.indexOf(' - '), first = i < 0 ? act : act.slice(0, i), more = i < 0 ? '' : act.slice(i + 3);

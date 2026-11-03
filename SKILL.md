@@ -71,6 +71,7 @@ The page exports the same files (Brand library, My vendors, Team rules, Fix list
 | GTM: "The name contains invalid character: \\" | Backslashes are removed from every name. |
 | GTM: "template_data: Missing section ___INFO___" | Import check flags templates with no code (export the container again). The page's sample container is importable. |
 | Exclude names only showed the value (`Exclude - CE - CN`, `Exclude - CE - .cn`) | The variable tested is added: `Exclude - CE - Visitor Location - CN`, `Exclude - CE - url - .cn`. |
+| Snapchat tags named `Snapchat - Template - …` | Pixel templates use the type `Pixel`: `Snapchat - Pixel - Add To Cart`, `Snapchat - Pixel - Pageview`. |
 | Import showed renames as Deleted + Added | Documented: GTM import matches by name; use the rename-in-place script to see *Modified*. |
 
 ## Naming convention
@@ -80,7 +81,7 @@ Every name says what kind of item it is and what it does. Separator is always ` 
 ### Tags – `Vendor - Tag type - Action`
 
 - **Vendor** first, then the **tag type**, then the **action** (what the tag does). No consent ending on a tag – the consent lives in its trigger.
-- **Tag types:** `cHTML` (Custom HTML – never "HTML"), `Image Pixel`, `Template` (custom templates and the Google Ads conversion tag), `Event` (GA4), `Google Tag`, `Remarketing`, `Conversion Linker`, `Counter` / `Sales` (Floodlight), `UET`, `OneTag`, `Pixel` (Pinterest).
+- **Tag types:** `cHTML` (Custom HTML – never "HTML"), `Image Pixel`, `Template` (custom templates and the Google Ads conversion tag), `Event` (GA4), `Google Tag`, `Remarketing`, `Conversion Linker`, `Counter` / `Sales` (Floodlight), `UET`, `OneTag`, `Pixel` (Pinterest, and any template whose name contains "Pixel", e.g. Snap Pixel → `Snapchat - Pixel - Add To Cart`, never `Snapchat - Template - …`).
 - **Action** comes from the tag itself first (GA4 event name, the pixel's track call, Criteo's event, the Listrak call, the Google Ads conversion ID), the old name only as a fallback.
 - **GA4 actions are written in words:** first letter of each word capital, no underscores, small words (to, and, of, for…) lower case: `add_to_cart` → `GA4 - Event - Add to Cart`. Never "Events", "errors", "ecom_event", "elysiumEvent" or an event name in brackets. A generic `errors` event is named from its `type` parameter (`GA4 - Event - Page Not Found`).
 - **No vendor found:** never "Utility" – the first part of the old name is the vendor and `cHTML` goes after it: `Hearst - Add To Cart` → `Hearst - cHTML - Add To Cart`; a one-part name becomes `<name> - cHTML` (`Humankind - cHTML`).
@@ -931,7 +932,8 @@ def main():
         act = norm(act)
         if t in ('flc', 'fls') and not old and STD_TAG.match(tg['name']): act = ''
         act = strip_words(re.sub(r'\s*-\s*(?:MKT|ANL|FUNC)(?=\s*-|$)', '', act).strip(' -'))   # consent endings live on triggers only
-        typ = RULES['labels']['template'] if t.startswith('cvt_') or t == 'awct' else TAG_TYPE_SHORT.get(t, 'Tag')
+        typ = 'Pixel' if t.startswith('cvt_') and re.search(r'\bpixel\b', tmpl_name(t), re.I) else \
+            RULES['labels']['template'] if t.startswith('cvt_') or t == 'awct' else TAG_TYPE_SHORT.get(t, 'Tag')  # a pixel template (Snap Pixel) is a Pixel
         if v == 'Utility':  # no vendor found: the old name's first part is the vendor ('Hearst - cHTML - Add To Cart')
             first, _, more = act.partition(' - ')
             name = (f'{first} - {typ} - {more}' if more else f'{act} - {typ}') if act else typ
