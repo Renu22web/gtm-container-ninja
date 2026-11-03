@@ -1,15 +1,15 @@
 ---
-name: gtm-container-ninja
-description: GTM Container Ninja - rename every tag, trigger and variable in a GTM container export to the PLC naming convention, give the same set-up the same name across all brands (brand library), optionally clean up unused items, and return an Excel summary, rename map and import-ready JSON.
+name: "gtm-container-ninja"
+description: "GTM Container Ninja - rename every tag, trigger and variable in a GTM container export to the PLC naming convention, give the same set-up the same name across all brands (brand library), optionally clean up unused items, and return an Excel summary, rename map and import-ready JSON."
 ---
 
 # GTM Container Ninja
 
-Takes a Google Tag Manager container export, works out what each tag, trigger and variable actually does from its configuration (tag type, template, pixel code, event names, trigger conditions, dataLayer keys), renames it so the name says what it is, and returns a file that can be imported into GTM to test. Behaviour never changes: only names (and, optionally, folders) change.
+Takes a Google Tag Manager container export, works out what each tag, trigger and variable actually does from its configuration (tag type, template, pixel code, event names, trigger conditions, dataLayer keys), renames it so the name says what it is, merges items that are set up exactly the same, and returns a file that can be imported into GTM to test. Behaviour never changes: only names (and, optionally, folders) change, and merged copies are replaced by an identical item.
 
 ## When to use
 
-The user shares a GTM container export (`GTM-XXXX_workspaceNN.json`, browser or server) and asks to standardise, review or fix naming, clean up unused items, or make several brands' containers use the same names. Also when they ask what the naming convention is.
+The user shares a GTM container export (`GTM-XXXX_workspaceNN.json`, browser or server) and asks to standardise, review or fix naming, clean up unused or duplicate items, or make several brands' containers use the same names. Also when they ask what the naming convention is.
 
 ## Brand files to keep (ask for them, reuse them on every run)
 
@@ -26,52 +26,38 @@ The page exports the same files (Brand library, My vendors, Team rules, Fix list
 
 1. **Find the export.** Use the attached file, or ask for it: GTM → Admin → Export Container → choose the workspace/version → download JSON. Confirm it has `containerVersion` with `tag` / `trigger` / `variable`.
 2. **Write the script** at the end of this skill to `gtm_rename.py` in the working (scratch) directory, exactly as given. If the user has a brand overrides file (e.g. `dermstore_overrides.csv`, or the "Export my names" file from the page's Fix list), add `--overrides <file>` to every run. If the user has vendors the tool does not know, write `vendors.csv` (`Vendor,Match` – the name to use, then comma-separated words that identify it in tag names, template names or code, e.g. `Power Reviews,"powerreviews, ui.powerreviews.com"`; the page's "My vendors" export is this file) and add `--vendors vendors.csv`.
-3. **Run it:** `python3 gtm_rename.py <export.json> --out <outdir> --library brand_library.json`; add `--folders` if the user wants one folder per vendor (see *Folders* below); add `--cleanup` when the user wants triggers and variables that nothing uses deleted (see *Clean-up* below); add `--vendors`, `--rules`, `--overrides` when the user has those files. Leave `--library` out only for the very first brand.
+3. **Run it:** `python3 gtm_rename.py <export.json> --out <outdir> --library brand_library.json`; add `--folders` if the user wants one folder per vendor (see *Folders* below); add `--cleanup` when the user wants triggers and variables that nothing uses deleted (see *Clean-up* below); add `--no-merge` only if the user wants items with exactly the same set-up kept (see *Same set-up – merged*); add `--vendors`, `--rules`, `--overrides` when the user has those files. Leave `--library` out only for the very first brand.
 4. **Web page alternative.** The same rules run in the "GTM Container Ninja" artifact page (browser only, file not uploaded); point users there when they prefer a page to the chat. The page adds:
-   - **Fix list** – the names the user wants to set by hand:
-     - *Add items* four ways: the search box (type part of an old or suggested name; the suggestions show `old → suggested`), the **+** on a table row, dragging a row into the list, or **Add to fix list** in an item's Details panel or for all ticked rows in *Select & export*.
-     - *Your name* shows the suggested name; type over it and press Enter – it becomes "Your name – used everywhere": every `{{reference}}`, trigger and tag-sequencing name follows, and it wins over the library and the rules. **Undo** goes back to the suggested name; **✕** removes the row from the list (a name already set stays until Undo).
-     - *Folder* shows where the item will be after import (with folders off, also "with folders: …"); *Why / note* is an optional note that goes into the export.
-     - **Export my names (.csv)** writes the brand overrides file (`Item,Old name,New name,Note`) for `--overrides`; **Import names (.csv)** loads one (also an older brand overrides file); **Clear list** empties the list but keeps the names already set. The Excel export has a "My fix list" sheet.
-     - The list, names and notes are remembered per container (in that browser, or for the whole team when the page is shared). Items deleted by clean-up or merging cannot be added.
+   - **Fix list** – collect the items the user is not happy with (search box, the + button on a row, or drag a row in), type the wanted name and an optional note; every reference follows. "Export my names" downloads the overrides file (`Item,Old name,New name,Note`) for `--overrides`; "Import names" loads one (also an existing brand overrides file). The list and names are remembered per container in that browser.
    - **My vendors** – the vendor list above (export/import as `vendors.csv`), remembered in that browser.
    - **Folder column** – the folder each item will be in after import (and, with the folders option off, the folder it would get).
    - **Brand library** – "Save this brand's names to the library" after a brand is done; every next brand reuses those names. Export/import as `brand_library.json` (same file as `--library`).
    - **Team rules** – the rule editor (tag type labels, words never kept, folder names); export/import as `naming_rules.json` (`--rules`).
    - **Shared with the team** – vendors, team rules, the brand library and each container's names are stored on the page for everyone who opens it (badge "Shared with your team"); without that, only in that browser.
    - **Details** – click an old name: what the item does (triggers and their conditions, exceptions, variables used, which tags use it, trigger groups, paused/consent status), with links between items.
+   - **Options** – folders per vendor, delete unused triggers/variables, and "Merge items with exactly the same set-up" (on by default).
    - **Select & export** – tick items (or "select all shown") and export only those, with the triggers, variables and templates they need. A partial file is imported with **Merge → Overwrite conflicting tags, triggers and variables**, never with Overwrite (that would delete everything not in the file).
    - **Find & replace**, **History** (undo/redo of every name change), **Name score** (share of names in the format, before/after, minus duplicates and missing consent), **Compare brands** (load other exports: vendors and tag actions per brand, what differs, CSV) and **Test after import** (journey test plan per step – home, category, product, add to cart, basket, checkout, purchase – as JSON/CSV for the GTM journey-tester skill).
-5. **Review before handing over.** Open `<name>_summary.xlsx` (sheets: Summary, Rename Map, Duplicates – delete, No consent condition, Deleted – not used (with `--cleanup`), Import check) and check:
+5. **Review before handing over.** Open `<name>_summary.xlsx` (sheets: Summary, Rename Map, Duplicates – delete, No consent condition, Deleted – not used (unused and merged items), Import check) and check:
    - **Import check sheet:** every run also makes the file safe to import. *Fixed* rows are problems GTM would refuse that the script repaired (today: hidden fields in old Gallery templates such as Snap Pixel, which cause "Hidden parameters are not allowed"; a template that had to be edited also loses its Gallery link, because GTM rejects a changed Gallery template with "This field is invalid (or unsupported)" on `galleryReference` – it imports as a custom template). *Check* rows need a person: a tag pointing to a trigger that is missing, a `{{variable}}` that does not exist in the container, or two items with the same name. If a *Fixed* row says the template code reads the removed field, update that template from the Gallery before publishing. A template with no code (GTM error "template_data: Missing section ___INFO___") cannot be repaired from the file – export the container again from GTM so the template code is included.
-   - **red rows – duplicates:** two items would get the same name because they have the same set-up. The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first"; the note names the original to keep. **Same name, different set-up is never a duplicate:** when two items end up with the same name but are set up differently (e.g. old names `cjs - AI Shopping Assistant Experiment Present` and `cjs -AI Shopping Assistant Experiment Present` with different code), a word only one of them uses is added – a variable its code reads, else a property it reads: `CJS - AI Shopping Assistant Experiment Present - fuel_coach_experiment_wave_01`, `CJS - Product Page Product ID - ProdId from URL`. For other variables the setting that changes what they return is added: `DLV - search_term` (no default) and `DLV - search_term - Default Empty` (Set Default Value / Convert undefined to ''). If nothing tells them apart, the copy is numbered with the note "NAME CLASH … different set-up, keep both and check the name" (Action "Check name", never "Delete"). **Paused tags are never deleted or flagged:** when a paused item has the same set-up as a live one, the **live** item keeps the clean name and the paused one gets the same formatted name with ` - Paused` (`Criteo - cHTML - addToCart - Paused`; for a trigger before the consent ending: `Criteo - CE - Add to cart - Paused - MKT`), note "PAUSED copy of live …", Action "Rename"; a trigger or variable used only by paused tags counts as paused (`DLV - ecommerce.items - Paused`), so a live item never gets the `(2)`. Live copies with the same code and the same firing conditions are only numbered – the trigger's name is never added to a tag name to tell them apart, and trigger words an earlier run added to tag names are removed on a re-run.
+   - **grey rows – merged** (default): items with exactly the same set-up as another item were merged into it – Action "Deleted (merged – same set-up)", the note names the item kept. Everything that used the copy now uses the item kept.
+   - **red rows – duplicates:** two live items would get the same name and have the same set-up (only left when merging is switched off, or for items GTM sees as different in a setting that does not change the name). The copy is numbered `(2)`, `(3)`… and its Action says "Delete (duplicate) – re-point first".
+   - **Same name, different set-up is never a duplicate:** when two items end up with the same name but are set up differently (e.g. old names `cjs - AI Shopping Assistant Experiment Present` and `cjs -AI Shopping Assistant Experiment Present` with different code), a word only one of them uses is added – a variable its code reads, else a property it reads: `CJS - AI Shopping Assistant Experiment Present - fuel_coach_experiment_wave_01`, `CJS - Product Page Product ID - ProdId from URL`. For other variables the setting that changes what they return is added: `DLV - search_term` (no default) and `DLV - search_term - Default Empty` (Set Default Value / Convert undefined to ''). If nothing tells them apart, the copy is numbered with the note "NAME CLASH … different set-up, keep both and check the name" (Action "Check name", never "Delete").
+   - **Paused tags are never deleted, merged or flagged:** they are renamed to the format like everything else. When a paused item has the same set-up as a live one, the **live** item keeps the clean name and the paused one gets the same formatted name with ` - Paused` (`Criteo - cHTML - addToCart - Paused`; for a trigger before the consent ending: `Criteo - CE - Add to cart - Paused - MKT`), note "PAUSED copy of live …", Action "Rename". A trigger or variable used only by paused tags counts as paused (`DLV - ecommerce.items - Paused`), so a live item never gets the `(2)`. Copies are never told apart by adding the trigger's name to a tag name, and trigger words an earlier run added to tag names are removed on a re-run.
    - **amber rows – no consent condition:** triggers whose old name implied a consent gate ("OT Marketing …", "OT Performance …", "OT - …") but whose conditions test no consent variable. They are renamed to the standard format like every other trigger – no "OT", no "Marketing", no consent ending – and the Action says to add the consent condition later (roadmap Phase 4).
    - **grey rows – deleted, not used** (only with `--cleanup`): triggers and variables removed because nothing in use depends on them. Check the list before importing.
-   - **blue rows – named from the old name only** (no config signal): make sure the name still says what the item does.
+   - **blue rows – named from the old name only** (no config signal) or a name clash: make sure the name still says what the item does.
    - consent variables are **only renamed, never swapped**: a template consent variable becomes `TPL - <name>` (e.g. `TPL - Marketing Cookies Allowed`) and a Custom JS one becomes `CJS - <name>` (e.g. `CJS - Marketing Cookies Allowed`). Both stay; references keep pointing at the same variable as before.
    - a file that was **already renamed** can be run again (for example the `_renamed.json` itself, or after more tags were added): names already in the standard format are kept, so only new or non-standard items change.
    If a name is wrong, write `overrides.csv` (`Item,Old name,New name`) and re-run with `--overrides overrides.csv`. Repeat until the map is clean.
 6. **Deliver** (send files, don't paste them):
-   - `<name>_summary.xlsx` – the summary sheet with the colour key, plus the full rename map with red / amber / blue highlighting and an Action column,
+   - `<name>_summary.xlsx` – the summary sheet with the colour key, plus the full rename map with red / amber / blue / grey highlighting and an Action column,
    - `<name>_renamed.json` – import-ready container,
    - `<name>_rename_map.csv` and `<name>_summary.md` – plain-text copies of the same (the map and every Excel sheet have a **Folder** column: the folder after import – the vendor folder with `--folders`, otherwise the item's current folder or "Unfiled"),
+   - `<name>_merges.json` (when something was merged) – needed by `gen_apps_script.py` for the rename-in-place script,
    - `<name>_library.json` – the brand library with this brand added; tell the user to keep it as `brand_library.json` and use it for the next brand,
-   - in the reply: counts per item type, references updated, number of duplicates (red), no-consent triggers (amber) and deleted unused items (grey), what the import check fixed or flagged, then the top items to check.
+   - in the reply: counts per item type, references updated, items merged, duplicates (red), paused copies renamed with "- Paused", name clashes, no-consent triggers (amber) and deleted unused items (grey), what the import check fixed or flagged, then the top items to check.
 7. **Tell them how to test** (below).
-
-## What changed recently (fix list)
-
-| Problem seen | What the skill does now |
-| --- | --- |
-| Live tags/triggers/variables got `(2)` and a paused copy kept the clean name (Criteo) | The **live** item always keeps the clean name; a paused copy gets ` - Paused` and is kept – never deleted or flagged. Triggers and variables used only by paused tags count as paused. |
-| Trigger text was added to tag names to tell copies apart | Never added; trigger words an earlier run added are removed on a re-run. |
-| Two items with **exactly the same set-up** (e.g. two `DLV - basketTotal`) both kept | Merged: the live one is kept, every tag/trigger/variable that used the copy is re-pointed, the copy is deleted (grey). `--no-merge` / page option to switch off; `<name>_merges.json` for the rename-in-place script. |
-| Same name but **different code** marked "duplicate – delete" (`AI Shopping Assistant Experiment Present`, `Product Page Product ID`) | A word only one of them uses is added (`… - fuel_coach_experiment_wave_01`, `… - ProdId from URL`); otherwise "NAME CLASH – keep both", never delete. |
-| `DLV - search_term (2)` with a default value marked duplicate | The setting is named: `DLV - search_term - Default Empty`. |
-| GTM: "The name contains invalid character: \\" | Backslashes are removed from every name. |
-| GTM: "template_data: Missing section ___INFO___" | Import check flags templates with no code (export the container again). The page's sample container is importable. |
-| Exclude names only showed the value (`Exclude - CE - CN`, `Exclude - CE - .cn`) | The variable tested is added: `Exclude - CE - Visitor Location - CN`, `Exclude - CE - url - .cn`. |
-| Import showed renames as Deleted + Added | Documented: GTM import matches by name; use the rename-in-place script to see *Modified*. |
 
 ## Naming convention
 
@@ -105,7 +91,9 @@ Every name says what kind of item it is and what it does. Separator is always ` 
 | Awin | `Awin - Template - MasterTag` · `Awin - Template - Consent Signals` · `Awin - cHTML - Conversion` | `Awin - cHTML - Conversion` |
 | Consent | `Consent - <Tag type> - <what>` | `Consent - Template - Consent Mode - Default` |
 | No vendor found | `<first part of old name> - cHTML - <rest>` | `Hearst - cHTML - Add To Cart`, `Narrativ - cHTML - All Pages` |
-| Duplicate set-up | numbered `(2)`, highlighted red | `Meta - cHTML - AddToCart (2)` → delete after re-pointing |
+| Exactly the same set-up | merged into one (grey) | two identical live tags → one stays |
+| Same name, different set-up | a word only one uses is added | `CJS - Product Page Product ID - ProdId from URL`, `DLV - search_term - Default Empty` |
+| Paused copy of a live tag | same name + ` - Paused`, kept | `Criteo - cHTML - addToCart - Paused` |
 
 **Brand-specific actions** that cannot be read from the code (for example which Listrak `Signup.SetValue` tag is Email and which is SMS, or `Dynamic Yield - cHTML - View Item` for a context-update tag) go in that brand's `overrides.csv` (`Item,Old name,New name`). The *Old name* can be the tag's current name **or** the standard name the script would give it, so one overrides file keeps working when the export is renamed again. Keep one overrides file per brand and re-use it on every run.
 
@@ -121,22 +109,23 @@ Every name says what kind of item it is and what it does. Separator is always ` 
 | FORM, HIST, TIMER, SCROLL, YT, JSERR | other auto-event types | `SCROLL - 50` |
 | TG | Trigger Group | `TG - No marketing consent then consent` |
 | written in full | Initialization / Consent Initialization | `Dynamic Yield - Initialization - All Pages`, `Consent Initialization - All Pages` |
-| Exclude | used only as an exception (blocking) trigger | `Exclude - CE - Visitor Location - CN`, `Exclude - CE - url - .cn` |
+| Exclude | used only as an exception (blocking) trigger | `Exclude - PV - Blog`, `Exclude - CE - Listrak - Merchant ID no` |
 
 - **Vendor** first when every tag that uses the trigger (directly or through a trigger group) belongs to one vendor – also vendors not in the built-in list (`Hearst`, `Narrativ`, `Spotx and Hulu`…). Google (GA4, Google Ads, Floodlight), consent and no-vendor triggers have no vendor part. If the action would be only the vendor's name, the vendor part is left out (`VIS - RingCentral_Icon_Viewed`, not `RingCentral - VIS - RingCentral`).
 - **Action comes from the old name first.** The old name's own words are kept and only fitted into the format: prefixes such as "OT Performance", "OT Marketing", "CE", "Event" and "Trigger" are removed, nothing else is reworded (`OT Performance - Add to Wishlist` → `Contentsquare - CE - Add to Wishlist - ANL`; `OT Performance - Event - ATC Modal closed` → `Contentsquare - CE - ATC Modal closed - ANL`; `OT Marketing - RTB House Product Page Trigger` → `RTB House - CE - Product Page - MKT`). Raw event names in the old name stay as written (`ecom_event (add_to_cart)`, `sponsoredAdsBannerRendered`).
 - Only when the old name says nothing (empty, "Trigger", "Custom Event", "Copy of …", "New trigger") is the action built from the configuration: the event name plus the first page/event condition (`ecom_event (add_to_cart)`).
 - **No repeated words:** the vendor name (and its aliases: DY, FB, Facebook, AWin…), the trigger type, consent words and any segment already in the name are removed from the action. `CE - ecom_event (view_item) - MKT - ecom_event - view_item` → `CE - ecom_event (view_item) - MKT`; `WL - DY - All pages except PDP - Dynamic Yield` → `Dynamic Yield - WL - All pages except PDP`; `CE - sponsoredAdsBannerRendered - Criteo` → `Criteo - CE - sponsoredAdsBannerRendered`.
 - **Consent** (`MKT`, `ANL`, `FUNC`) always last, only when a condition really tests consent. "OT", "OT Marketing", "OT Performance" and "OneTrust Marketing consent" are never kept. A trigger whose old name implied consent but has no consent condition gets the plain name (`OT - Awin Site Only` → `Awin - WL - Site only`) and is highlighted amber.
-- **Exclude triggers** name what they test and the value: `Exclude - <code> - <variable tested> - <value>` (`{{Visitor Location}} equals CN` → `Exclude - CE - Visitor Location - CN`; `{{url}} contains .cn` → `Exclude - CE - url - .cn`; `Page Category contains blog` → `Exclude - PV - Page Category - Blog`). The variable is named as it was called in the container (type prefixes such as DLV removed); the event name of a Custom Event is never added as "event". When the value says nothing on its own (true, no, a regex), only the variable and value are written (`Exclude - CE - Listrak - Merchant ID no`). Backslashes from regex values are dropped. A re-run keeps Exclude names made by an earlier run.
+- **Exclude triggers** name what they exclude: `Exclude - <code> - <value of the condition>` (e.g. `Page Category contains blog` → `Exclude - PV - Blog`). When the value says nothing on its own (true, no, a regex), the variable name is added (`Exclude - CE - Listrak - Merchant ID no`). Backslashes from regex values are dropped (`\.html$` → `Exclude - PV - Page Path .html`).
 - **Shared triggers:** a trigger used by tags of several vendors is `Trigger type - Action - Consent` – no vendor in front and no vendor name anywhere in the action (`PV - All Pages - for GA4` → `PV - All Pages`; `CE - ecom_event (add_to_cart) - Add To Cart for GA4` → `CE - ecom_event (add_to_cart)`). The consent ending stays when a condition tests consent (`CE - purchase - MKT`).
+- **Paused copies:** a trigger used only by paused tags that has the same set-up as a live trigger gets `Paused` before the consent ending (`Criteo - CE - Add to cart - Paused - MKT`) – unless merging is on, which re-points the paused tags to the live trigger.
 - `CE - OneTrustGroupsUpdated - DY - OneTrustConsent - MKT`, used only by Dynamic Yield → `Dynamic Yield - CE - OneTrustGroupsUpdated - OneTrustConsent - MKT`.
 
 ### Variables – `CODE - What it holds`
 
 | Code | Variable type | Named from | Example |
 | --- | --- | --- | --- |
-| DLV | Data Layer Variable | the dataLayer key | `DLV - ecommerce.value` |
+| DLV | Data Layer Variable | the dataLayer key (+ ` - Default <value>` when a default/format value makes it differ from another DLV with the same key) | `DLV - ecommerce.value`, `DLV - search_term - Default Empty` |
 | CJS | Custom JavaScript | purpose (old name cleaned) | `Custom JS - Marketing Cookies Allowed` → `CJS - Marketing Cookies Allowed` |
 | TPL | any custom-template variable | purpose | `Template - Marketing Cookies Allowed` → `TPL - Marketing Cookies Allowed` |
 | CONST | Constant | purpose | `CONST - TikTok ID` |
@@ -151,6 +140,10 @@ Every name says what kind of item it is and what it does. Separator is always ` 
 
 Built-in variables are never renamed. Template and Custom JS consent variables are both kept and only renamed, never swapped.
 
+## Same set-up – merged (default; `--no-merge` to switch off)
+
+Tags, triggers and variables with **exactly the same set-up** (every setting and value, not only the name) are merged: one is kept, everything that used the copy is re-pointed to it ({{variable}} references, firing/blocking triggers, trigger groups, tag sequencing), and the copy is deleted (grey rows, Action "Deleted (merged – same set-up)"). The item kept is the one live tags use; **paused tags are never merged** (a paused copy of a live tag is renamed with ` - Paused`). Example: two `DLV - basketTotal` variables with the same dataLayer key and settings, used by different tags/triggers → one stays and both sets of tags/triggers use it. Two items that differ in any setting (e.g. one DLV with "Set Default Value") are never merged. The run writes `<name>_merges.json`, which `gen_apps_script.py` uses so the rename-in-place script re-points and deletes the copies too. On the page: option "Merge items with exactly the same set-up" (on by default).
+
 ## Same names in every brand – `--library`
 
 Brands have the same kind of set-up, but not every brand has every tag, and new vendors, tags, triggers and variables keep being added. The library makes every brand use the same names:
@@ -162,7 +155,7 @@ Brands have the same kind of set-up, but not every brand has every tag, and new 
 "Set up the same way" is read from the configuration, never from names (names differ per brand):
 - **Tag:** vendor (from the tag type or code), tag type or template name, its event (GA4 event name, the pixel's track call, the template's event field, the Floodlight group/activity, or a fingerprint of the Custom HTML code with numbers removed) and the set-ups of its firing triggers.
 - **Trigger:** type, every condition (operator, value, and the set-up of the variable it tests), selector/interval settings; a trigger group by its members.
-- **Variable:** type and key – the dataLayer key, cookie name, URL part, JS variable, Event Data key, DOM selector, the variable a lookup table reads, the code of a Custom JavaScript variable, or a template variable's settings.
+- **Variable:** type and key – the dataLayer key (plus its default/format value when set), cookie name, URL part, JS variable, Event Data key, DOM selector, the variable a lookup table reads, the code of a Custom JavaScript variable, or a template variable's settings.
 
 Safe-guards: an item whose set-up appears twice in the same container is never renamed from the library; a brand's own entries never rename that brand; a consent variable only takes a consent name; names set by hand (`--overrides`) always win and also update the library. Priority: overrides → library → rules.
 
@@ -185,13 +178,9 @@ Every tag, trigger and variable is moved into one folder, decided by **which ven
 - A folder `01 Utilities & Data Layer` left by an older run is removed once it is empty.
 - The folders are the same on a first run and on a re-run of the renamed file.
 
-## Same set-up – merged (default; `--no-merge` to switch off)
-
-Tags, triggers and variables with **exactly the same set-up** (every setting and value, not only the name) are merged: one is kept, everything that used the copy is re-pointed to it ({{variable}} references, firing/blocking triggers, trigger groups, tag sequencing), and the copy is deleted (grey rows, Action "Deleted (merged – same set-up)"). The item kept is the one live tags use; **paused tags are never merged** (a paused copy of a live tag is renamed with ` - Paused`). Example: two `DLV - basketTotal` variables with the same dataLayer key and settings used by different tags/triggers → one stays, both sets of tags/triggers use it. Two items with the same name but a different set-up are never merged (see *Same name, different set-up*). The run writes `<name>_merges.json`, which `gen_apps_script.py` uses so the rename-in-place script re-points and deletes the copies too. On the page: option "Merge items with exactly the same set-up" (on by default).
-
 ## Clean-up – `--cleanup` (optional)
 
-Deletes triggers and variables that nothing in use depends on. Tags are never deleted, and renamed items are never deleted – they keep their IDs (rename in place to see them as *Modified* in GTM).
+Deletes triggers and variables that nothing in use depends on. Tags are never deleted by clean-up (paused tags included), and renamed items are never deleted – they keep their IDs (rename in place to see them as *Modified* in GTM).
 
 - **A trigger is in use** if any tag fires or is blocked by it (**paused tags count as in use**), if a used trigger group contains it (followed through nested groups), or if a zone references it.
 - **A variable is in use** if its `{{name}}` appears in a tag, a used trigger, a client, a transformation or a zone, or inside another variable that is in use (followed through every level: a lookup table that reads a variable that reads a cookie keeps all three).
@@ -213,11 +202,11 @@ A vendor that is not in the built-in list still follows every rule: its tags are
 
 ## What the script guarantees
 
-- IDs, firing/blocking triggers, parameters and code are untouched; only `name` (and `parentFolderId` with `--folders`) change.
+- IDs, firing/blocking triggers, parameters and code are untouched except where a merged copy is replaced by the identical item kept; otherwise only `name` (and `parentFolderId` with `--folders`) change.
 - Every `{{Old variable name}}` in tags, triggers, variables, clients and transformations is rewritten to the new name.
 - Tag Sequencing references (`setupTag` / `teardownTag` tag names) are updated.
-- Names are unique per item type; clashes are numbered and highlighted red as duplicates to delete.
-- Nothing is replaced or merged. Duplicates and missing consent conditions are only reported. Without `--cleanup` nothing is deleted, so the import changes names alone; with `--cleanup` only the triggers and variables listed in *Deleted – not used* are removed.
+- Names are unique per item type: items with exactly the same set-up are merged; same name with a different set-up gets a telling word (or a NAME CLASH note); a paused copy of a live item gets ` - Paused` and is kept; a live item always keeps the clean name.
+- Nothing is replaced except merged copies. Without `--cleanup` and with `--no-merge` nothing is deleted. Paused tags are never deleted or merged.
 - The file is import-safe: hidden template fields GTM rejects are removed (with the matching tag values, and the template's Gallery link, whose signature no longer matches), names never contain `{` `}`, a backslash `\` (GTM: "The name contains invalid character") or line breaks, a variable never takes the name of a built-in variable, and anything else GTM may refuse is listed in the Import check.
 - Running the script again on its own output changes nothing that is already standard.
 
@@ -227,11 +216,11 @@ GTM's **Import Container** matches items by **name**, not by ID. So when a renam
 
 **Option A – rename in place (recommended, shows "Modified")**
 
-1. Build the script: `python3 gen_apps_script.py <original_export.json> <name>_renamed.json <name>_rename_in_place.gs [--folders]` (in `scripts/` of the GitHub repo).
+1. Build the script: `python3 gen_apps_script.py <original_export.json> <name>_renamed.json <name>_rename_in_place.gs [--folders]` (in `scripts/` of the GitHub repo `Renu22web/gtm-container-ninja`; it reads `<name>_merges.json` next to the renamed file automatically).
 2. In GTM create a **new workspace** and note its number (the digits after `/workspaces/` in the address bar).
 3. script.google.com → New project → paste the `.gs` file → set `WORKSPACE_ID` → Services → add **Tag Manager API**.
 4. Run `run` with `DRY_RUN = true`, read the log, then set `DRY_RUN = false` and run again (re-run if it says "Time limit reached" until "ALL DONE").
-5. Renamed items show as **Modified**, unused ones (with `--cleanup`) as **Deleted**. Only names, `{{variable}}` references, tag-sequencing names and (optionally) folders change; nothing is published. An item whose current name is not the expected old name is skipped and logged.
+5. Renamed items show as **Modified**, merged copies and unused items as **Deleted**. Only names, references and (optionally) folders change; nothing is published. An item whose current name is not the expected old name is skipped and logged.
 
 **Option B – import the renamed file**
 
@@ -258,7 +247,7 @@ updates every reference ({{variable}} strings, Tag Sequencing tag names), and
 writes: an import-ready container JSON, a rename map (CSV) and a summary (MD).
 
 Usage:
-  python3 gtm_rename.py <export.json> [--out DIR] [--folders] [--cleanup] [--library brand_library.json] [--overrides overrides.csv] [--vendors vendors.csv] [--rules naming_rules.json]
+  python3 gtm_rename.py <export.json> [--out DIR] [--folders] [--cleanup] [--no-merge] [--library brand_library.json] [--overrides overrides.csv] [--vendors vendors.csv] [--rules naming_rules.json]
 """
 import argparse, collections, copy, csv, json, os, re, sys
 
@@ -994,8 +983,7 @@ def main():
                 op, l, r, neg = cond_parts(c)
                 v = str(r).strip().strip('/^$').replace('|', ' / ')
                 good = v and v.lower() not in JUNK and len(v) <= 30 and not re.search(r'[\\\[\]()*+?]', v)
-                lab_ = '' if '_event' in l else var_label(l)  # what is tested, then the value: 'Exclude - CE - Visitor Location - CN'
-                what.append(((lab_ + ' - ') if lab_ else '') + v[0].upper() + v[1:] if good else lab_ + (' ' + v if v and len(v) <= 30 else ''))
+                what.append(v[0].upper() + v[1:] if good else var_label(l) + (' ' + v if v and len(v) <= 30 else ''))
             core = ' - '.join(what) if what else oc
             if what: basis = 'config'
         elif t == 'TRIGGER_GROUP':
@@ -1130,9 +1118,6 @@ def main():
             if v[1] == 'override': continue
             if idk == 'triggerId' and not trig_parts[str(x[idk])][4] and trig_parts[str(x[idk])][1] != 'TG':
                 v[0] = keep_trigger(str(x[idk]), x['name'], v[0])  # Vendor - Type - Action - Consent, nothing repeated
-            elif idk == 'triggerId' and trig_parts[str(x[idk])][4]:
-                o_, n_ = NUM_SUFFIX.sub('', x['name']).strip().split(' - '), v[0].split(' - ')  # re-run: an Exclude name made by an earlier run is kept
-                v[0] = ' - '.join(o_) if len(o_) == len(n_) >= 4 and o_[:2] == n_[:2] and o_[-1].lower() == n_[-1].lower() else keep_existing(x['name'], v[0])
             elif idk == 'tagId' and trig_text_added(x, v[0]):
                 pass  # an earlier run added the trigger's name to tell copies apart: dropped, duplicates are numbered instead
             else:
