@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """GTM naming-convention renamer.
 
@@ -745,7 +744,8 @@ def main():
                 op, l, r, neg = cond_parts(c)
                 v = str(r).strip().strip('/^$').replace('|', ' / ')
                 good = v and v.lower() not in JUNK and len(v) <= 30 and not re.search(r'[\\\[\]()*+?]', v)
-                what.append(v[0].upper() + v[1:] if good else var_label(l) + (' ' + v if v and len(v) <= 30 else ''))
+                lab_ = '' if '_event' in l else var_label(l)  # what is tested, then the value: 'Exclude - CE - Visitor Location - CN'
+                what.append(((lab_ + ' - ') if lab_ else '') + v[0].upper() + v[1:] if good else lab_ + (' ' + v if v and len(v) <= 30 else ''))
             core = ' - '.join(what) if what else oc
             if what: basis = 'config'
         elif t == 'TRIGGER_GROUP':
@@ -880,6 +880,9 @@ def main():
             if v[1] == 'override': continue
             if idk == 'triggerId' and not trig_parts[str(x[idk])][4] and trig_parts[str(x[idk])][1] != 'TG':
                 v[0] = keep_trigger(str(x[idk]), x['name'], v[0])  # Vendor - Type - Action - Consent, nothing repeated
+            elif idk == 'triggerId' and trig_parts[str(x[idk])][4]:
+                o_, n_ = NUM_SUFFIX.sub('', x['name']).strip().split(' - '), v[0].split(' - ')  # re-run: an Exclude name made by an earlier run is kept
+                v[0] = ' - '.join(o_) if len(o_) == len(n_) >= 4 and o_[:2] == n_[:2] and o_[-1].lower() == n_[-1].lower() else keep_existing(x['name'], v[0])
             elif idk == 'tagId' and trig_text_added(x, v[0]):
                 pass  # an earlier run added the trigger's name to tell copies apart: dropped, duplicates are numbered instead
             else:
@@ -1244,4 +1247,3 @@ def write_xlsx(path, cv, base, rows, refs, seq, made_folders, vendors, fixes=())
 
 if __name__ == '__main__':
     main()
-
