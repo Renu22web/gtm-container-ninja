@@ -28,7 +28,12 @@ The page exports the same files (Brand library, My vendors, Team rules, Fix list
 2. **Write the script** at the end of this skill to `gtm_rename.py` in the working (scratch) directory, exactly as given. If the user has a brand overrides file (e.g. `dermstore_overrides.csv`, or the "Export my names" file from the page's Fix list), add `--overrides <file>` to every run. If the user has vendors the tool does not know, write `vendors.csv` (`Vendor,Match` – the name to use, then comma-separated words that identify it in tag names, template names or code, e.g. `Power Reviews,"powerreviews, ui.powerreviews.com"`; the page's "My vendors" export is this file) and add `--vendors vendors.csv`.
 3. **Run it:** `python3 gtm_rename.py <export.json> --out <outdir> --library brand_library.json`; add `--folders` if the user wants one folder per vendor (see *Folders* below); add `--cleanup` when the user wants triggers and variables that nothing uses deleted (see *Clean-up* below); add `--vendors`, `--rules`, `--overrides` when the user has those files. Leave `--library` out only for the very first brand.
 4. **Web page alternative.** The same rules run in the "GTM Container Ninja" artifact page (browser only, file not uploaded); point users there when they prefer a page to the chat. The page adds:
-   - **Fix list** – collect the items the user is not happy with (search box, the + button on a row, or drag a row in), type the wanted name and an optional note; every reference follows. "Export my names" downloads the overrides file (`Item,Old name,New name,Note`) for `--overrides`; "Import names" loads one (also an existing brand overrides file). The list and names are remembered per container in that browser.
+   - **Fix list** – the names the user wants to set by hand:
+     - *Add items* four ways: the search box (type part of an old or suggested name; the suggestions show `old → suggested`), the **+** on a table row, dragging a row into the list, or **Add to fix list** in an item's Details panel or for all ticked rows in *Select & export*.
+     - *Your name* shows the suggested name; type over it and press Enter – it becomes "Your name – used everywhere": every `{{reference}}`, trigger and tag-sequencing name follows, and it wins over the library and the rules. **Undo** goes back to the suggested name; **✕** removes the row from the list (a name already set stays until Undo).
+     - *Folder* shows where the item will be after import (with folders off, also "with folders: …"); *Why / note* is an optional note that goes into the export.
+     - **Export my names (.csv)** writes the brand overrides file (`Item,Old name,New name,Note`) for `--overrides`; **Import names (.csv)** loads one (also an older brand overrides file); **Clear list** empties the list but keeps the names already set. The Excel export has a "My fix list" sheet.
+     - The list, names and notes are remembered per container (in that browser, or for the whole team when the page is shared). Items deleted by clean-up or merging cannot be added.
    - **My vendors** – the vendor list above (export/import as `vendors.csv`), remembered in that browser.
    - **Folder column** – the folder each item will be in after import (and, with the folders option off, the folder it would get).
    - **Brand library** – "Save this brand's names to the library" after a brand is done; every next brand reuses those names. Export/import as `brand_library.json` (same file as `--library`).
@@ -53,6 +58,20 @@ The page exports the same files (Brand library, My vendors, Team rules, Fix list
    - `<name>_library.json` – the brand library with this brand added; tell the user to keep it as `brand_library.json` and use it for the next brand,
    - in the reply: counts per item type, references updated, number of duplicates (red), no-consent triggers (amber) and deleted unused items (grey), what the import check fixed or flagged, then the top items to check.
 7. **Tell them how to test** (below).
+
+## What changed recently (fix list)
+
+| Problem seen | What the skill does now |
+| --- | --- |
+| Live tags/triggers/variables got `(2)` and a paused copy kept the clean name (Criteo) | The **live** item always keeps the clean name; a paused copy gets ` - Paused` and is kept – never deleted or flagged. Triggers and variables used only by paused tags count as paused. |
+| Trigger text was added to tag names to tell copies apart | Never added; trigger words an earlier run added are removed on a re-run. |
+| Two items with **exactly the same set-up** (e.g. two `DLV - basketTotal`) both kept | Merged: the live one is kept, every tag/trigger/variable that used the copy is re-pointed, the copy is deleted (grey). `--no-merge` / page option to switch off; `<name>_merges.json` for the rename-in-place script. |
+| Same name but **different code** marked "duplicate – delete" (`AI Shopping Assistant Experiment Present`, `Product Page Product ID`) | A word only one of them uses is added (`… - fuel_coach_experiment_wave_01`, `… - ProdId from URL`); otherwise "NAME CLASH – keep both", never delete. |
+| `DLV - search_term (2)` with a default value marked duplicate | The setting is named: `DLV - search_term - Default Empty`. |
+| GTM: "The name contains invalid character: \\" | Backslashes are removed from every name. |
+| GTM: "template_data: Missing section ___INFO___" | Import check flags templates with no code (export the container again). The page's sample container is importable. |
+| Exclude names only showed the value (`Exclude - CE - CN`, `Exclude - CE - .cn`) | The variable tested is added: `Exclude - CE - Visitor Location - CN`, `Exclude - CE - url - .cn`. |
+| Import showed renames as Deleted + Added | Documented: GTM import matches by name; use the rename-in-place script to see *Modified*. |
 
 ## Naming convention
 
@@ -102,14 +121,14 @@ Every name says what kind of item it is and what it does. Separator is always ` 
 | FORM, HIST, TIMER, SCROLL, YT, JSERR | other auto-event types | `SCROLL - 50` |
 | TG | Trigger Group | `TG - No marketing consent then consent` |
 | written in full | Initialization / Consent Initialization | `Dynamic Yield - Initialization - All Pages`, `Consent Initialization - All Pages` |
-| Exclude | used only as an exception (blocking) trigger | `Exclude - PV - Blog`, `Exclude - CE - Listrak - Merchant ID no` |
+| Exclude | used only as an exception (blocking) trigger | `Exclude - CE - Visitor Location - CN`, `Exclude - CE - url - .cn` |
 
 - **Vendor** first when every tag that uses the trigger (directly or through a trigger group) belongs to one vendor – also vendors not in the built-in list (`Hearst`, `Narrativ`, `Spotx and Hulu`…). Google (GA4, Google Ads, Floodlight), consent and no-vendor triggers have no vendor part. If the action would be only the vendor's name, the vendor part is left out (`VIS - RingCentral_Icon_Viewed`, not `RingCentral - VIS - RingCentral`).
 - **Action comes from the old name first.** The old name's own words are kept and only fitted into the format: prefixes such as "OT Performance", "OT Marketing", "CE", "Event" and "Trigger" are removed, nothing else is reworded (`OT Performance - Add to Wishlist` → `Contentsquare - CE - Add to Wishlist - ANL`; `OT Performance - Event - ATC Modal closed` → `Contentsquare - CE - ATC Modal closed - ANL`; `OT Marketing - RTB House Product Page Trigger` → `RTB House - CE - Product Page - MKT`). Raw event names in the old name stay as written (`ecom_event (add_to_cart)`, `sponsoredAdsBannerRendered`).
 - Only when the old name says nothing (empty, "Trigger", "Custom Event", "Copy of …", "New trigger") is the action built from the configuration: the event name plus the first page/event condition (`ecom_event (add_to_cart)`).
 - **No repeated words:** the vendor name (and its aliases: DY, FB, Facebook, AWin…), the trigger type, consent words and any segment already in the name are removed from the action. `CE - ecom_event (view_item) - MKT - ecom_event - view_item` → `CE - ecom_event (view_item) - MKT`; `WL - DY - All pages except PDP - Dynamic Yield` → `Dynamic Yield - WL - All pages except PDP`; `CE - sponsoredAdsBannerRendered - Criteo` → `Criteo - CE - sponsoredAdsBannerRendered`.
 - **Consent** (`MKT`, `ANL`, `FUNC`) always last, only when a condition really tests consent. "OT", "OT Marketing", "OT Performance" and "OneTrust Marketing consent" are never kept. A trigger whose old name implied consent but has no consent condition gets the plain name (`OT - Awin Site Only` → `Awin - WL - Site only`) and is highlighted amber.
-- **Exclude triggers** name what they exclude: `Exclude - <code> - <value of the condition>` (e.g. `Page Category contains blog` → `Exclude - PV - Blog`). When the value says nothing on its own (true, no, a regex), the variable name is added (`Exclude - CE - Listrak - Merchant ID no`).
+- **Exclude triggers** name what they test and the value: `Exclude - <code> - <variable tested> - <value>` (`{{Visitor Location}} equals CN` → `Exclude - CE - Visitor Location - CN`; `{{url}} contains .cn` → `Exclude - CE - url - .cn`; `Page Category contains blog` → `Exclude - PV - Page Category - Blog`). The variable is named as it was called in the container (type prefixes such as DLV removed); the event name of a Custom Event is never added as "event". When the value says nothing on its own (true, no, a regex), only the variable and value are written (`Exclude - CE - Listrak - Merchant ID no`). Backslashes from regex values are dropped. A re-run keeps Exclude names made by an earlier run.
 - **Shared triggers:** a trigger used by tags of several vendors is `Trigger type - Action - Consent` – no vendor in front and no vendor name anywhere in the action (`PV - All Pages - for GA4` → `PV - All Pages`; `CE - ecom_event (add_to_cart) - Add To Cart for GA4` → `CE - ecom_event (add_to_cart)`). The consent ending stays when a condition tests consent (`CE - purchase - MKT`).
 - `CE - OneTrustGroupsUpdated - DY - OneTrustConsent - MKT`, used only by Dynamic Yield → `Dynamic Yield - CE - OneTrustGroupsUpdated - OneTrustConsent - MKT`.
 
@@ -975,7 +994,8 @@ def main():
                 op, l, r, neg = cond_parts(c)
                 v = str(r).strip().strip('/^$').replace('|', ' / ')
                 good = v and v.lower() not in JUNK and len(v) <= 30 and not re.search(r'[\\\[\]()*+?]', v)
-                what.append(v[0].upper() + v[1:] if good else var_label(l) + (' ' + v if v and len(v) <= 30 else ''))
+                lab_ = '' if '_event' in l else var_label(l)  # what is tested, then the value: 'Exclude - CE - Visitor Location - CN'
+                what.append(((lab_ + ' - ') if lab_ else '') + v[0].upper() + v[1:] if good else lab_ + (' ' + v if v and len(v) <= 30 else ''))
             core = ' - '.join(what) if what else oc
             if what: basis = 'config'
         elif t == 'TRIGGER_GROUP':
@@ -1110,6 +1130,9 @@ def main():
             if v[1] == 'override': continue
             if idk == 'triggerId' and not trig_parts[str(x[idk])][4] and trig_parts[str(x[idk])][1] != 'TG':
                 v[0] = keep_trigger(str(x[idk]), x['name'], v[0])  # Vendor - Type - Action - Consent, nothing repeated
+            elif idk == 'triggerId' and trig_parts[str(x[idk])][4]:
+                o_, n_ = NUM_SUFFIX.sub('', x['name']).strip().split(' - '), v[0].split(' - ')  # re-run: an Exclude name made by an earlier run is kept
+                v[0] = ' - '.join(o_) if len(o_) == len(n_) >= 4 and o_[:2] == n_[:2] and o_[-1].lower() == n_[-1].lower() else keep_existing(x['name'], v[0])
             elif idk == 'tagId' and trig_text_added(x, v[0]):
                 pass  # an earlier run added the trigger's name to tell copies apart: dropped, duplicates are numbered instead
             else:
